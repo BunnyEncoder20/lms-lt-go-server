@@ -1,0 +1,15 @@
+[sqlfluff]
+# Tell sqlfluff we are using SQLite for this Go project
+dialect = sqlite
+
+[sqlfluff:rules:capitalisation.keywords]
+# Force keywords like SELECT, FROM, WHERE to be uppercase
+capitalisation_policy = upper
+
+[sqlfluff:rules:capitalisation.identifiers]
+# Keep your table and column names as you wrote them (e.g., lowercase)
+capitalisation_policy = consistent
+
+[sqlfluff:rules:capitalisation.functions]
+# Force function names like COUNT(), MAX() to be uppercase
+extended_capitalisation_policy = upper
