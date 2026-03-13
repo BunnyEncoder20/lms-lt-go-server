@@ -7,15 +7,161 @@ package db
 
 import (
 	"context"
+	"database/sql"
+	"time"
+
+	"github.com/google/uuid"
 )
 
-const getUser = `-- name: GetUser :one
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, is_active, created_at, updated_at, manager_id FROM users
-WHERE id = ? LIMIT 1
+const createCourse = `-- name: CreateCourse :one
+INSERT INTO courses (
+    id, title, description, author_id, cover_image_uri, status,
+    category, estimated_durations, learning_outcomes, is_strict_sequencing
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, title, description, author_id, cover_image_uri, status, category, estimated_durations, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at
 `
 
-func (q *Queries) GetUser(ctx context.Context, id string) (User, error) {
-	row := q.db.QueryRowContext(ctx, getUser, id)
+type CreateCourseParams struct {
+	ID                 uuid.UUID      `json:"id"`
+	Title              string         `json:"title"`
+	Description        sql.NullString `json:"description"`
+	AuthorID           uuid.NullUUID  `json:"author_id"`
+	CoverImageUri      sql.NullString `json:"cover_image_uri"`
+	Status             string         `json:"status"`
+	Category           string         `json:"category"`
+	EstimatedDurations sql.NullInt64  `json:"estimated_durations"`
+	LearningOutcomes   string         `json:"learning_outcomes"`
+	IsStrictSequencing bool           `json:"is_strict_sequencing"`
+}
+
+// COURSE
+func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Course, error) {
+	row := q.db.QueryRowContext(ctx, createCourse,
+		arg.ID,
+		arg.Title,
+		arg.Description,
+		arg.AuthorID,
+		arg.CoverImageUri,
+		arg.Status,
+		arg.Category,
+		arg.EstimatedDurations,
+		arg.LearningOutcomes,
+		arg.IsStrictSequencing,
+	)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.AuthorID,
+		&i.CoverImageUri,
+		&i.Status,
+		&i.Category,
+		&i.EstimatedDurations,
+		&i.LearningOutcomes,
+		&i.IsStrictSequencing,
+		&i.Version,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createTraining = `-- name: CreateTraining :one
+INSERT INTO trainings (
+    id, title, description, category, start_date, end_date,
+    location, virtual_link, pre_read_uri, created_by_id
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, is_active, created_at, updated_at
+`
+
+type CreateTrainingParams struct {
+	ID          uuid.UUID      `json:"id"`
+	Title       string         `json:"title"`
+	Description sql.NullString `json:"description"`
+	Category    string         `json:"category"`
+	StartDate   time.Time      `json:"start_date"`
+	EndDate     time.Time      `json:"end_date"`
+	Location    sql.NullString `json:"location"`
+	VirtualLink sql.NullString `json:"virtual_link"`
+	PreReadUri  sql.NullString `json:"pre_read_uri"`
+	CreatedByID uuid.UUID      `json:"created_by_id"`
+}
+
+// TRAININGS
+func (q *Queries) CreateTraining(ctx context.Context, arg CreateTrainingParams) (Training, error) {
+	row := q.db.QueryRowContext(ctx, createTraining,
+		arg.ID,
+		arg.Title,
+		arg.Description,
+		arg.Category,
+		arg.StartDate,
+		arg.EndDate,
+		arg.Location,
+		arg.VirtualLink,
+		arg.PreReadUri,
+		arg.CreatedByID,
+	)
+	var i Training
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.Category,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Location,
+		&i.VirtualLink,
+		&i.PreReadUri,
+		&i.CreatedByID,
+		&i.DeadlineDays,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (
+    id, pes_number, password, first_name, last_name,
+    email, role, cluster, manager_id
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, pes_number, password, first_name, last_name, email, role, cluster, is_active, created_at, updated_at, manager_id
+`
+
+type CreateUserParams struct {
+	ID        uuid.UUID      `json:"id"`
+	PesNumber string         `json:"pes_number"`
+	Password  string         `json:"password"`
+	FirstName string         `json:"first_name"`
+	LastName  string         `json:"last_name"`
+	Email     string         `json:"email"`
+	Role      string         `json:"role"`
+	Cluster   sql.NullString `json:"cluster"`
+	ManagerID uuid.NullUUID  `json:"manager_id"`
+}
+
+// USERS
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createUser,
+		arg.ID,
+		arg.PesNumber,
+		arg.Password,
+		arg.FirstName,
+		arg.LastName,
+		arg.Email,
+		arg.Role,
+		arg.Cluster,
+		arg.ManagerID,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -34,8 +180,158 @@ func (q *Queries) GetUser(ctx context.Context, id string) (User, error) {
 	return i, err
 }
 
+const getCourseWithAuthor = `-- name: GetCourseWithAuthor :one
+SELECT
+    c.id, c.title, c.description, c.author_id, c.cover_image_uri, c.status, c.category, c.estimated_durations, c.learning_outcomes, c.is_strict_sequencing, c.version, c.published_at, c.created_at, c.updated_at,
+    u.first_name AS author_first_name,
+    u.last_name AS author_last_name
+FROM courses c
+JOIN users u ON c.author_id = u.id
+WHERE c.id = ?
+LIMIT 1
+`
+
+type GetCourseWithAuthorRow struct {
+	ID                 uuid.UUID      `json:"id"`
+	Title              string         `json:"title"`
+	Description        sql.NullString `json:"description"`
+	AuthorID           uuid.NullUUID  `json:"author_id"`
+	CoverImageUri      sql.NullString `json:"cover_image_uri"`
+	Status             string         `json:"status"`
+	Category           string         `json:"category"`
+	EstimatedDurations sql.NullInt64  `json:"estimated_durations"`
+	LearningOutcomes   string         `json:"learning_outcomes"`
+	IsStrictSequencing bool           `json:"is_strict_sequencing"`
+	Version            int64          `json:"version"`
+	PublishedAt        sql.NullTime   `json:"published_at"`
+	CreatedAt          time.Time      `json:"created_at"`
+	UpdatedAt          time.Time      `json:"updated_at"`
+	AuthorFirstName    string         `json:"author_first_name"`
+	AuthorLastName     string         `json:"author_last_name"`
+}
+
+// Example of a join to handle that prisma 'author' relation
+func (q *Queries) GetCourseWithAuthor(ctx context.Context, id uuid.UUID) (GetCourseWithAuthorRow, error) {
+	row := q.db.QueryRowContext(ctx, getCourseWithAuthor, id)
+	var i GetCourseWithAuthorRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.AuthorID,
+		&i.CoverImageUri,
+		&i.Status,
+		&i.Category,
+		&i.EstimatedDurations,
+		&i.LearningOutcomes,
+		&i.IsStrictSequencing,
+		&i.Version,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.AuthorFirstName,
+		&i.AuthorLastName,
+	)
+	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, pes_number, password, first_name, last_name, email, role, cluster, is_active, created_at, updated_at, manager_id FROM users
+WHERE email = ? LIMIT 1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.PesNumber,
+		&i.Password,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.Role,
+		&i.Cluster,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ManagerID,
+	)
+	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, pes_number, password, first_name, last_name, email, role, cluster, is_active, created_at, updated_at, manager_id FROM users
+WHERE id = ? LIMIT 1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.PesNumber,
+		&i.Password,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.Role,
+		&i.Cluster,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ManagerID,
+	)
+	return i, err
+}
+
+const listActiveTrainings = `-- name: ListActiveTrainings :many
+SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, is_active, created_at, updated_at FROM trainings
+WHERE is_active = 1
+ORDER BY start_date ASC
+`
+
+func (q *Queries) ListActiveTrainings(ctx context.Context) ([]Training, error) {
+	rows, err := q.db.QueryContext(ctx, listActiveTrainings)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Training
+	for rows.Next() {
+		var i Training
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Category,
+			&i.StartDate,
+			&i.EndDate,
+			&i.Location,
+			&i.VirtualLink,
+			&i.PreReadUri,
+			&i.CreatedByID,
+			&i.DeadlineDays,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUsers = `-- name: ListUsers :many
 SELECT id, pes_number, password, first_name, last_name, email, role, cluster, is_active, created_at, updated_at, manager_id FROM users
+ORDER BY last_name, first_name
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
@@ -72,4 +368,20 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateUserStatus = `-- name: UpdateUserStatus :exec
+UPDATE users
+SET is_active = ?
+WHERE id = ?
+`
+
+type UpdateUserStatusParams struct {
+	IsActive bool      `json:"is_active"`
+	ID       uuid.UUID `json:"id"`
+}
+
+func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserStatus, arg.IsActive, arg.ID)
+	return err
 }

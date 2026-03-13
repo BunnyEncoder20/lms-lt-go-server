@@ -39,3 +39,12 @@ watch:
         fi
 
 .PHONY: all build run test clean watch
+
+# Reseting the db and seeding the dummy data
+.PHONY: db-reset
+db-reset:
+	@rm -f local_lms.db
+	@sqlite3 local_lms.db < schema.sql
+	@go run scripts/seed/main.go
+	@echo "✅ DB Reset and Seeded with Bcrypt hashes"
+
