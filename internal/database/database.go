@@ -119,6 +119,8 @@ func (s *service) Health() map[string]string {
 		stats["message"] = "Many connections are being closed due to max lifetime, consider increasing max lifetime or revising the connection usage pattern."
 	}
 
+	log.Println(stats["message"])
+
 	return stats
 }
 

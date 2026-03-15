@@ -4,12 +4,13 @@ package server
 import (
 	"context"
 	"fmt"
-	"go-server/internal/database"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"go-server/internal/database"
 
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -53,13 +54,11 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if err := s.engine.Shutdown(ctx); err != nil {
 		return fmt.Errorf("http shutdown error: %w", err)
 	}
-	log.Println("HTTP server stopped.")
 
 	log.Println("Closing database connections...")
 	if err := s.db.Close(); err != nil {
 		return fmt.Errorf("error while closing db connections: %w", err)
 	}
-	log.Println("Database connections closed.")
 
 	return nil
 }
