@@ -1,4 +1,4 @@
-// Package models contains the response models for the API endpoints.
+// Package models contains the models for the API endpoints for proper structure of certain types.
 package models
 
 type JSONResponse struct {
