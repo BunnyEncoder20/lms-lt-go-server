@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go-server/internal/models"
 )
 
 const createCourse = `-- name: CreateCourse :one
@@ -24,16 +25,16 @@ RETURNING id, title, description, author_id, cover_image_uri, status, category, 
 `
 
 type CreateCourseParams struct {
-	ID                 uuid.UUID      `json:"id"`
-	Title              string         `json:"title"`
-	Description        sql.NullString `json:"description"`
-	AuthorID           uuid.NullUUID  `json:"author_id"`
-	CoverImageUri      sql.NullString `json:"cover_image_uri"`
-	Status             string         `json:"status"`
-	Category           string         `json:"category"`
-	EstimatedDurations sql.NullInt64  `json:"estimated_durations"`
-	LearningOutcomes   string         `json:"learning_outcomes"`
-	IsStrictSequencing bool           `json:"is_strict_sequencing"`
+	ID                 uuid.UUID               `json:"id"`
+	Title              string                  `json:"title"`
+	Description        sql.NullString          `json:"description"`
+	AuthorID           uuid.NullUUID           `json:"author_id"`
+	CoverImageUri      sql.NullString          `json:"cover_image_uri"`
+	Status             models.CourseStatus     `json:"status"`
+	Category           models.TrainingCategory `json:"category"`
+	EstimatedDurations sql.NullInt64           `json:"estimated_durations"`
+	LearningOutcomes   string                  `json:"learning_outcomes"`
+	IsStrictSequencing bool                    `json:"is_strict_sequencing"`
 }
 
 // COURSE
@@ -81,16 +82,16 @@ RETURNING id, title, description, category, start_date, end_date, location, virt
 `
 
 type CreateTrainingParams struct {
-	ID          uuid.UUID      `json:"id"`
-	Title       string         `json:"title"`
-	Description sql.NullString `json:"description"`
-	Category    string         `json:"category"`
-	StartDate   time.Time      `json:"start_date"`
-	EndDate     time.Time      `json:"end_date"`
-	Location    sql.NullString `json:"location"`
-	VirtualLink sql.NullString `json:"virtual_link"`
-	PreReadUri  sql.NullString `json:"pre_read_uri"`
-	CreatedByID uuid.UUID      `json:"created_by_id"`
+	ID          uuid.UUID               `json:"id"`
+	Title       string                  `json:"title"`
+	Description sql.NullString          `json:"description"`
+	Category    models.TrainingCategory `json:"category"`
+	StartDate   time.Time               `json:"start_date"`
+	EndDate     time.Time               `json:"end_date"`
+	Location    sql.NullString          `json:"location"`
+	VirtualLink sql.NullString          `json:"virtual_link"`
+	PreReadUri  sql.NullString          `json:"pre_read_uri"`
+	CreatedByID uuid.UUID               `json:"created_by_id"`
 }
 
 // TRAININGS
@@ -144,7 +145,7 @@ type CreateUserParams struct {
 	FirstName string         `json:"first_name"`
 	LastName  string         `json:"last_name"`
 	Email     string         `json:"email"`
-	Role      string         `json:"role"`
+	Role      models.Role    `json:"role"`
 	Cluster   sql.NullString `json:"cluster"`
 	ManagerID uuid.NullUUID  `json:"manager_id"`
 }
@@ -192,22 +193,22 @@ LIMIT 1
 `
 
 type GetCourseWithAuthorRow struct {
-	ID                 uuid.UUID      `json:"id"`
-	Title              string         `json:"title"`
-	Description        sql.NullString `json:"description"`
-	AuthorID           uuid.NullUUID  `json:"author_id"`
-	CoverImageUri      sql.NullString `json:"cover_image_uri"`
-	Status             string         `json:"status"`
-	Category           string         `json:"category"`
-	EstimatedDurations sql.NullInt64  `json:"estimated_durations"`
-	LearningOutcomes   string         `json:"learning_outcomes"`
-	IsStrictSequencing bool           `json:"is_strict_sequencing"`
-	Version            int64          `json:"version"`
-	PublishedAt        sql.NullTime   `json:"published_at"`
-	CreatedAt          time.Time      `json:"created_at"`
-	UpdatedAt          time.Time      `json:"updated_at"`
-	AuthorFirstName    string         `json:"author_first_name"`
-	AuthorLastName     string         `json:"author_last_name"`
+	ID                 uuid.UUID               `json:"id"`
+	Title              string                  `json:"title"`
+	Description        sql.NullString          `json:"description"`
+	AuthorID           uuid.NullUUID           `json:"author_id"`
+	CoverImageUri      sql.NullString          `json:"cover_image_uri"`
+	Status             models.CourseStatus     `json:"status"`
+	Category           models.TrainingCategory `json:"category"`
+	EstimatedDurations sql.NullInt64           `json:"estimated_durations"`
+	LearningOutcomes   string                  `json:"learning_outcomes"`
+	IsStrictSequencing bool                    `json:"is_strict_sequencing"`
+	Version            int64                   `json:"version"`
+	PublishedAt        sql.NullTime            `json:"published_at"`
+	CreatedAt          time.Time               `json:"created_at"`
+	UpdatedAt          time.Time               `json:"updated_at"`
+	AuthorFirstName    string                  `json:"author_first_name"`
+	AuthorLastName     string                  `json:"author_last_name"`
 }
 
 // Example of a join to handle that prisma 'author' relation

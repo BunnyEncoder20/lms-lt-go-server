@@ -30,12 +30,12 @@ const (
 	CourseArchived  CourseStatus = "ARCHIVED"
 )
 
-// CourseCategory represents the category of a course in the system.
-type CourseCategory string
+// TrainingCategory represents the category of a course in the system.
+type TrainingCategory string
 
 const (
-	CourseTechnical  CourseCategory = "TECHNICAL"
-	CourseBehavioral CourseCategory = "BEHAVIORAL"
+	TrainingTechnical  TrainingCategory = "TECHNICAL"
+	TrainingBehavioral TrainingCategory = "BEHAVIORAL"
 )
 
 // LessonContentType represents the type of content in a lesson.

@@ -9,36 +9,37 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go-server/internal/models"
 )
 
 type Course struct {
-	ID                 uuid.UUID      `json:"id"`
-	Title              string         `json:"title"`
-	Description        sql.NullString `json:"description"`
-	AuthorID           uuid.NullUUID  `json:"author_id"`
-	CoverImageUri      sql.NullString `json:"cover_image_uri"`
-	Status             string         `json:"status"`
-	Category           string         `json:"category"`
-	EstimatedDurations sql.NullInt64  `json:"estimated_durations"`
-	LearningOutcomes   string         `json:"learning_outcomes"`
-	IsStrictSequencing bool           `json:"is_strict_sequencing"`
-	Version            int64          `json:"version"`
-	PublishedAt        sql.NullTime   `json:"published_at"`
-	CreatedAt          time.Time      `json:"created_at"`
-	UpdatedAt          time.Time      `json:"updated_at"`
+	ID                 uuid.UUID               `json:"id"`
+	Title              string                  `json:"title"`
+	Description        sql.NullString          `json:"description"`
+	AuthorID           uuid.NullUUID           `json:"author_id"`
+	CoverImageUri      sql.NullString          `json:"cover_image_uri"`
+	Status             models.CourseStatus     `json:"status"`
+	Category           models.TrainingCategory `json:"category"`
+	EstimatedDurations sql.NullInt64           `json:"estimated_durations"`
+	LearningOutcomes   string                  `json:"learning_outcomes"`
+	IsStrictSequencing bool                    `json:"is_strict_sequencing"`
+	Version            int64                   `json:"version"`
+	PublishedAt        sql.NullTime            `json:"published_at"`
+	CreatedAt          time.Time               `json:"created_at"`
+	UpdatedAt          time.Time               `json:"updated_at"`
 }
 
 type CourseAssignment struct {
-	ID                 uuid.UUID     `json:"id"`
-	Status             string        `json:"status"`
-	ProgressPercentage float64       `json:"progress_percentage"`
-	CourseVersion      int64         `json:"course_version"`
-	DueDate            sql.NullTime  `json:"due_date"`
-	EnrolledAt         time.Time     `json:"enrolled_at"`
-	CompletedAt        sql.NullTime  `json:"completed_at"`
-	CourseID           uuid.UUID     `json:"course_id"`
-	UserID             uuid.UUID     `json:"user_id"`
-	AssignedByID       uuid.NullUUID `json:"assigned_by_id"`
+	ID                 uuid.UUID                     `json:"id"`
+	Status             models.CourseAssignmentStatus `json:"status"`
+	ProgressPercentage float64                       `json:"progress_percentage"`
+	CourseVersion      int64                         `json:"course_version"`
+	DueDate            sql.NullTime                  `json:"due_date"`
+	EnrolledAt         time.Time                     `json:"enrolled_at"`
+	CompletedAt        sql.NullTime                  `json:"completed_at"`
+	CourseID           uuid.UUID                     `json:"course_id"`
+	UserID             uuid.UUID                     `json:"user_id"`
+	AssignedByID       uuid.NullUUID                 `json:"assigned_by_id"`
 }
 
 type CourseModule struct {
@@ -52,16 +53,16 @@ type CourseModule struct {
 }
 
 type Lesson struct {
-	ID              uuid.UUID      `json:"id"`
-	Title           string         `json:"title"`
-	ContentType     string         `json:"content_type"`
-	AssetUri        sql.NullString `json:"asset_uri"`
-	RichTextContent sql.NullString `json:"rich_text_content"`
-	DurationMinutes sql.NullInt64  `json:"duration_minutes"`
-	SequenceOrder   int64          `json:"sequence_order"`
-	ModuleID        uuid.UUID      `json:"module_id"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
+	ID              uuid.UUID                `json:"id"`
+	Title           string                   `json:"title"`
+	ContentType     models.LessonContentType `json:"content_type"`
+	AssetUri        sql.NullString           `json:"asset_uri"`
+	RichTextContent sql.NullString           `json:"rich_text_content"`
+	DurationMinutes sql.NullInt64            `json:"duration_minutes"`
+	SequenceOrder   int64                    `json:"sequence_order"`
+	ModuleID        uuid.UUID                `json:"module_id"`
+	CreatedAt       time.Time                `json:"created_at"`
+	UpdatedAt       time.Time                `json:"updated_at"`
 }
 
 type LessonProgress struct {
@@ -74,30 +75,30 @@ type LessonProgress struct {
 }
 
 type Nomination struct {
-	ID            uuid.UUID `json:"id"`
-	Status        string    `json:"status"`
-	UserID        uuid.UUID `json:"user_id"`
-	TrainingID    uuid.UUID `json:"training_id"`
-	NominatedByID uuid.UUID `json:"nominated_by_id"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            uuid.UUID               `json:"id"`
+	Status        models.NominationStatus `json:"status"`
+	UserID        uuid.UUID               `json:"user_id"`
+	TrainingID    uuid.UUID               `json:"training_id"`
+	NominatedByID uuid.UUID               `json:"nominated_by_id"`
+	CreatedAt     time.Time               `json:"created_at"`
+	UpdatedAt     time.Time               `json:"updated_at"`
 }
 
 type Training struct {
-	ID           uuid.UUID      `json:"id"`
-	Title        string         `json:"title"`
-	Description  sql.NullString `json:"description"`
-	Category     string         `json:"category"`
-	StartDate    time.Time      `json:"start_date"`
-	EndDate      time.Time      `json:"end_date"`
-	Location     sql.NullString `json:"location"`
-	VirtualLink  sql.NullString `json:"virtual_link"`
-	PreReadUri   sql.NullString `json:"pre_read_uri"`
-	CreatedByID  uuid.UUID      `json:"created_by_id"`
-	DeadlineDays int64          `json:"deadline_days"`
-	IsActive     bool           `json:"is_active"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
+	ID           uuid.UUID               `json:"id"`
+	Title        string                  `json:"title"`
+	Description  sql.NullString          `json:"description"`
+	Category     models.TrainingCategory `json:"category"`
+	StartDate    time.Time               `json:"start_date"`
+	EndDate      time.Time               `json:"end_date"`
+	Location     sql.NullString          `json:"location"`
+	VirtualLink  sql.NullString          `json:"virtual_link"`
+	PreReadUri   sql.NullString          `json:"pre_read_uri"`
+	CreatedByID  uuid.UUID               `json:"created_by_id"`
+	DeadlineDays int64                   `json:"deadline_days"`
+	IsActive     bool                    `json:"is_active"`
+	CreatedAt    time.Time               `json:"created_at"`
+	UpdatedAt    time.Time               `json:"updated_at"`
 }
 
 type User struct {
@@ -107,7 +108,7 @@ type User struct {
 	FirstName string         `json:"first_name"`
 	LastName  string         `json:"last_name"`
 	Email     string         `json:"email"`
-	Role      string         `json:"role"`
+	Role      models.Role    `json:"role"`
 	Cluster   sql.NullString `json:"cluster"`
 	IsActive  bool           `json:"is_active"`
 	CreatedAt time.Time      `json:"created_at"`
