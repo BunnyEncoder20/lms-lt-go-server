@@ -34,7 +34,9 @@ CREATE TABLE IF NOT EXISTS trainings (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
-    category TEXT NOT NULL,
+    category TEXT NOT NULL CHECK (
+        category IN ('TECHNICAL', 'BEHAVIORAL')
+    ),
     start_date DATETIME NOT NULL,
     end_date DATETIME NOT NULL,
     location TEXT,

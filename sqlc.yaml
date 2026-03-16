@@ -24,3 +24,19 @@ sql:
           # 3. All other forrign keys are required
           - column: "*.*_id"
             go_type: "github.com/google/uuid.UUID"
+
+          # 4 All the enums should be mapped to predetermined costum types
+          - column: "users.role"
+            go_type: "go-server/internal/models.Role"
+          - column: "trainings.category"
+            go_type: "go-server/internal/models.TrainingCategory"
+          - column: "nominations.status"
+            go_type: "go-server/internal/models.NominationStatus"
+          - column: "courses.status"
+            go_type: "go-server/internal/models.CourseStatus"
+          - column: "courses.category"
+            go_type: "go-server/internal/models.TrainingCategory"
+          - column: "lessons.content_type"
+            go_type: "go-server/internal/models.LessonContentType"
+          - column: "course_assignments.status"
+            go_type: "go-server/internal/models.CourseAssignmentStatus"

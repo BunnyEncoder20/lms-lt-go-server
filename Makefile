@@ -31,7 +31,6 @@ watch:
             if [ "$$choice" != "n" ] && [ "$$choice" != "N" ]; then \
                 go install github.com/air-verse/air@latest; \
                 air; \
-                echo "Watching...";\
             else \
                 echo "You chose not to install air. Exiting..."; \
                 exit 1; \
@@ -41,10 +40,9 @@ watch:
 .PHONY: all build run test clean watch
 
 # Reseting the db and seeding the dummy data
-.PHONY: db-reset
-db-reset:
-	@rm -f local_lms.db
-	@sqlite3 local_lms.db < schema.sql
-	@go run scripts/seed/main.go
-	@echo "✅ DB Reset and Seeded with Bcrypt hashes"
+.PHONY: db-seed
+db-seed:
+	@rm -f ./local_lms.db ./local_lms.db-shm ./local_lms.db-wal
+	@sqlite3 ./local_lms.db < ./schema.sql
+	@go run ./scripts/seed/main.go
 

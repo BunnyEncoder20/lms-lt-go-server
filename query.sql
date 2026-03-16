@@ -35,6 +35,15 @@ INSERT INTO trainings (
 )
 RETURNING *;
 
+-- NOMINATIONS
+-- name: CreateNomination :one
+INSERT INTO nominations (
+    id, status, user_id, training_id, nominated_by_id
+) VALUES (
+    ?, ?, ?, ?, ?
+)
+RETURNING *;
+
 
 -- name: ListActiveTrainings :many
 SELECT * FROM trainings
