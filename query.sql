@@ -9,16 +9,50 @@ INSERT INTO users (
 RETURNING *;
 
 -- name: GetUserByID :one
-SELECT * FROM users
-WHERE id = ? LIMIT 1;
+SELECT
+    id,
+    pes_number,
+    password,
+    first_name,
+    last_name,
+    email,
+    role,
+    cluster,
+    manager_id
+FROM users
+WHERE id = ?
+ORDER BY id
+LIMIT 1;
 
 -- name: GetUserByEmail :one
-SELECT * FROM users
-WHERE email = ? LIMIT 1;
+SELECT
+    id,
+    pes_number,
+    password,
+    first_name,
+    last_name,
+    email,
+    role,
+    cluster,
+    manager_id
+FROM users
+WHERE email = ?
+ORDER BY id
+LIMIT 1;
 
 -- name: ListUsers :many
-SELECT * FROM users
-ORDER BY last_name, first_name;
+SELECT
+    id,
+    pes_number,
+    password,
+    first_name,
+    last_name,
+    email,
+    role,
+    cluster,
+    manager_id
+FROM users
+ORDER BY first_name, last_name;
 
 -- name: UpdateUserStatus :exec
 UPDATE users
@@ -46,7 +80,20 @@ RETURNING *;
 
 
 -- name: ListActiveTrainings :many
-SELECT * FROM trainings
+SELECT
+    id,
+    title,
+    description,
+    category,
+    start_date,
+    end_date,
+    location,
+    virtual_link,
+    pre_read_uri,
+    created_by_id,
+    deadline_days,
+    is_active
+FROM trainings
 WHERE is_active = 1
 ORDER BY start_date ASC;
 
