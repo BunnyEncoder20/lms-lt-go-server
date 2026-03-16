@@ -49,7 +49,7 @@ func (s *Server) HelloWorldHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Writing the reponse
-	s.WriteJSON(w, http.StatusOK, resp)
+	models.WriteJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -61,5 +61,5 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 		Data:    dbHealthMpp,
 	}
 
-	s.WriteJSON(w, http.StatusOK, resp)
+	models.WriteJSON(w, http.StatusOK, resp)
 }

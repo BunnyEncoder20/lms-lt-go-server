@@ -11,6 +11,8 @@ import (
 	"time"
 
 	_ "modernc.org/sqlite" // pure Go sqlite3 driver, no need for CGO, works across platforms and is easy to set up
+
+	"go-server/internal/database/db"
 )
 
 // Service represents a service that interacts with a database
@@ -20,6 +22,10 @@ type Service interface {
 
 	// Close terminated the database connection
 	Close() error
+
+	// Funcs to give modules access to queries
+	Read() *db.Queries
+	Write() *db.Queries
 }
 
 type service struct {
@@ -31,7 +37,7 @@ type service struct {
 var dbInstance *service
 
 func New() Service {
-	// Reuse Connection
+	// Reuse Connection: singalton pattern
 	if dbInstance != nil {
 		return dbInstance
 	}
@@ -144,4 +150,14 @@ func (s *service) Close() error {
 
 	log.Printf("Disconnected from database: %s", s.dburl)
 	return nil
+}
+
+// We do not want to return *sql.DB to the moudules,
+// We want to return proper typed db.Queries
+func (s *service) Read() *db.Queries {
+	return db.New(s.reader) // instead of seeding the sql.DB conn to the modules, we instead all the queries right here and send back the queries
+}
+
+func (s *service) Write() *db.Queries {
+	return db.New(s.writer)
 }
