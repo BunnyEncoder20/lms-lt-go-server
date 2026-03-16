@@ -1,11 +1,11 @@
 package server
 
 import (
-	"encoding/json"
-	"go-server/internal/models"
 	"log"
 	"net/http"
 	"os"
+
+	"go-server/internal/models"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -38,17 +38,6 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 		// Proceed with the next handler (here, our router/mux from above)
 		next.ServeHTTP(w, r)
 	})
-}
-
-// WriteJSON Helper func to write json responses
-func (s *Server) WriteJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	// NewEncoder(http.ResponseWriter).Encode(resp) streams the data (slightly faster for larger responses and also memeory efficient cause it doesn't hold the string in a var)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		log.Printf("error encoding json: %v", err)
-	}
 }
 
 func (s *Server) HelloWorldHandler(w http.ResponseWriter, r *http.Request) {
