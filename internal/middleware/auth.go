@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"slices"
 
 	"go-server/internal/auth"
 	"go-server/internal/models"
@@ -60,5 +61,33 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 
 		// 4. Create a new request with the updated context and pass it to the next handler
 		next.ServeHTTP(w, r.WithContext(ctx))
+	}
+}
+
+// ReqruireRoles check if the user's role (ectracted by RequireAuth) is in hte allowed list
+// The variadic parameter (...string) allows us to pass one or more roles.
+func RequireRoles(allowedRoles ...string) func(http.HandlerFunc) http.HandlerFunc {
+	// tis returns the actual middleware function
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		// tis returns the HTTP handler
+		return func(w http.ResponseWriter, r *http.Request) {
+			// 1. Pul the role safely out of the context
+			// We use the Type Assertion .(string) again because Context values are stored as empty interfaces (any)
+			userRole, ok := r.Context().Value(UserRoleKey).(string)
+			if !ok || userRole == "" {
+				// this acts as a failsafe in case RequuredRoles is accedentally used without RequireAuth
+				models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+					Message: "unauthorized: role identity missing",
+				})
+				return
+			}
+
+			// 2. Check if their roles exists in the allowed list
+			if slices.Contains(allowedRoles, userRole) {
+				// Access granted Pass the baton to the target handler
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
 	}
 }
