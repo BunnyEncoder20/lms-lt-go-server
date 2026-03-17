@@ -55,7 +55,7 @@ func (s *service) Login(ctx context.Context, email, password string) (string, er
 		UserID: user.ID.String(),
 		Role:   string(user.Role),
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // 1 day sessoin
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // 1 day session
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
