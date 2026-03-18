@@ -5,15 +5,56 @@ import (
 	"net/http"
 	"os"
 
+	"go-server/internal/auth"
+	"go-server/internal/middleware"
 	"go-server/internal/models"
 )
+
+// Middleware is a custom type that makes our function signature cleaner
+type Middleware func(http.Handler) http.Handler
+
+// applyMiddleware is a helper function to apply multiple middlewares to a handler in a clean way
+// It iterates backwards so that first middleware in the list is the outermost one (the first one to execute when a request comes in)
+func applyMiddleware(h http.Handler, mws ...Middleware) http.Handler {
+	for i := len(mws) - 1; i >= 0; i-- {
+		h = mws[i](h)
+	}
+	return h
+}
 
 func (s *Server) RegisterRoutes() http.Handler {
 	mux := http.NewServeMux()
 
-	// Register routes here
-	mux.HandleFunc("/", s.HelloWorldHandler)
-	mux.HandleFunc("/dbhealth", s.healthHandler)
+	// Module Init
+	jwtSecret := os.Getenv("JWT_SECRET")
+	authService := auth.NewService(s.db, jwtSecret)
+	authHandler := auth.NewHandler(authService)
+
+	// Middleware Stacks
+	// grouping middlewares into slices makes applying them to routes incredibly easy and clean.
+	// We can have different stacks for different types of routes (e.g., public vs protected)
+	adminOnly := []Middleware{
+		middleware.RequireAuth,
+		middleware.RequireRoles(string(models.RoleAdmin)),
+	}
+
+	managerOrAdmin := []Middleware{
+		middleware.RequireAuth,
+		middleware.RequireRoles(string(models.RoleAdmin), string(models.RoleManager)),
+	}
+
+	// Register routes
+
+	// --- Public Routes
+	mux.HandleFunc("GET /", s.HelloWorldHandler)
+	mux.HandleFunc("GET /dbhealth", s.healthHandler)
+	mux.HandleFunc("POST /login", authHandler.HandleLogin)
+
+	// --- Protected Routes
+	mux.Handle("GET /admin/user/list", applyMiddleware(http.HandlerFunc(s.HelloWorldHandler), adminOnly...))
+	mux.Handle("GET /manager/user/list", applyMiddleware(http.HandlerFunc(s.HelloWorldHandler), managerOrAdmin...))
+
+	// Can add more modules routes here
 
 	// Wrap the mux with CORS middleware
 	return s.corsMiddleware(mux)
@@ -45,7 +86,7 @@ func (s *Server) HelloWorldHandler(w http.ResponseWriter, r *http.Request) {
 	resp := models.JSONResponse{
 		Success: true,
 		Message: "Hello World",
-		Data:    []int{1, 2, 3},
+		Data:    []string{"Welcome to the Go Server!", "This is a sample response.", "No you cannot build this thing even if you tried"},
 	}
 
 	// Writing the reponse
