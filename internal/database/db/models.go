@@ -38,7 +38,7 @@ type CourseAssignment struct {
 	EnrolledAt         time.Time                     `json:"enrolled_at"`
 	CompletedAt        sql.NullTime                  `json:"completed_at"`
 	CourseID           uuid.UUID                     `json:"course_id"`
-	UserID             uuid.UUID                     `json:"user_id"`
+	UserID             uuid.NullUUID                 `json:"user_id"`
 	AssignedByID       uuid.NullUUID                 `json:"assigned_by_id"`
 }
 
@@ -75,43 +75,83 @@ type LessonProgress struct {
 }
 
 type Nomination struct {
-	ID            uuid.UUID               `json:"id"`
-	Status        models.NominationStatus `json:"status"`
-	UserID        uuid.UUID               `json:"user_id"`
-	TrainingID    uuid.UUID               `json:"training_id"`
-	NominatedByID uuid.UUID               `json:"nominated_by_id"`
-	CreatedAt     time.Time               `json:"created_at"`
-	UpdatedAt     time.Time               `json:"updated_at"`
+	ID                   uuid.UUID               `json:"id"`
+	Status               models.NominationStatus `json:"status"`
+	UserID               uuid.UUID               `json:"user_id"`
+	TrainingID           uuid.UUID               `json:"training_id"`
+	NominatedByID        uuid.UUID               `json:"nominated_by_id"`
+	HrCompletionStatus   sql.NullString          `json:"hr_completion_status"`
+	ProfFees             sql.NullFloat64         `json:"prof_fees"`
+	VenueCost            sql.NullFloat64         `json:"venue_cost"`
+	OtherCost            sql.NullFloat64         `json:"other_cost"`
+	NonTemsTravel        sql.NullFloat64         `json:"non_tems_travel"`
+	NonTemsAccommodation sql.NullFloat64         `json:"non_tems_accommodation"`
+	TotalCost            sql.NullFloat64         `json:"total_cost"`
+	CreatedAt            time.Time               `json:"created_at"`
+	UpdatedAt            time.Time               `json:"updated_at"`
 }
 
 type Training struct {
-	ID           uuid.UUID               `json:"id"`
-	Title        string                  `json:"title"`
-	Description  sql.NullString          `json:"description"`
-	Category     models.TrainingCategory `json:"category"`
-	StartDate    time.Time               `json:"start_date"`
-	EndDate      time.Time               `json:"end_date"`
-	Location     sql.NullString          `json:"location"`
-	VirtualLink  sql.NullString          `json:"virtual_link"`
-	PreReadUri   sql.NullString          `json:"pre_read_uri"`
-	CreatedByID  uuid.UUID               `json:"created_by_id"`
-	DeadlineDays int64                   `json:"deadline_days"`
-	IsActive     bool                    `json:"is_active"`
-	CreatedAt    time.Time               `json:"created_at"`
-	UpdatedAt    time.Time               `json:"updated_at"`
+	ID                   uuid.UUID               `json:"id"`
+	Title                string                  `json:"title"`
+	Description          sql.NullString          `json:"description"`
+	Category             models.TrainingCategory `json:"category"`
+	StartDate            time.Time               `json:"start_date"`
+	EndDate              time.Time               `json:"end_date"`
+	Location             sql.NullString          `json:"location"`
+	VirtualLink          sql.NullString          `json:"virtual_link"`
+	PreReadUri           sql.NullString          `json:"pre_read_uri"`
+	CreatedByID          uuid.UUID               `json:"created_by_id"`
+	DeadlineDays         int64                   `json:"deadline_days"`
+	HrProgramID          uuid.UUID               `json:"hr_program_id"`
+	MappedCategory       string                  `json:"mapped_category"`
+	ModeOfDelivery       models.DeliveryMode     `json:"mode_of_delivery"`
+	InstructorName       string                  `json:"instructor_name"`
+	InstitutePartnerName sql.NullString          `json:"institute_partner_name"`
+	ProcessOwnerName     sql.NullString          `json:"process_owner_name"`
+	ProcessOwnerEmail    sql.NullString          `json:"process_owner_email"`
+	DurationManhours     sql.NullFloat64         `json:"duration_manhours"`
+	TrainingMandays      sql.NullFloat64         `json:"training_mandays"`
+	FacilityID           uuid.UUID               `json:"facility_id"`
+	IsActive             bool                    `json:"is_active"`
+	CreatedAt            time.Time               `json:"created_at"`
+	UpdatedAt            time.Time               `json:"updated_at"`
+}
+
+type TrainingCalendarPlan struct {
+	ID               uuid.UUID                 `json:"id"`
+	ProgramName      string                    `json:"program_name"`
+	MappedCategory   string                    `json:"mapped_category"`
+	TargetMonth      string                    `json:"target_month"`
+	Status           models.CalendarPlanStatus `json:"status"`
+	ActualTrainingID uuid.NullUUID             `json:"actual_training_id"`
+	CreatedAt        time.Time                 `json:"created_at"`
+	UpdatedAt        time.Time                 `json:"updated_at"`
 }
 
 type User struct {
-	ID        uuid.UUID      `json:"id"`
-	PesNumber string         `json:"pes_number"`
-	Password  string         `json:"password"`
-	FirstName string         `json:"first_name"`
-	LastName  string         `json:"last_name"`
-	Email     string         `json:"email"`
-	Role      models.Role    `json:"role"`
-	Cluster   sql.NullString `json:"cluster"`
-	IsActive  bool           `json:"is_active"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	ManagerID uuid.NullUUID  `json:"manager_id"`
+	ID           uuid.UUID      `json:"id"`
+	PesNumber    string         `json:"pes_number"`
+	Password     string         `json:"password"`
+	FirstName    string         `json:"first_name"`
+	LastName     string         `json:"last_name"`
+	Email        string         `json:"email"`
+	Role         models.Role    `json:"role"`
+	Cluster      sql.NullString `json:"cluster"`
+	Title        string         `json:"title"`
+	Gender       string         `json:"gender"`
+	Band         string         `json:"band"`
+	Grade        string         `json:"grade"`
+	Ic           string         `json:"ic"`
+	Sbg          string         `json:"sbg"`
+	Bu           string         `json:"bu"`
+	Segment      string         `json:"segment"`
+	Department   string         `json:"department"`
+	BaseLocation string         `json:"base_location"`
+	IsActive     bool           `json:"is_active"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	IsID         uuid.NullUUID  `json:"is_id"`
+	NsID         uuid.NullUUID  `json:"ns_id"`
+	DhID         uuid.NullUUID  `json:"dh_id"`
 }

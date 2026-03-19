@@ -14,11 +14,19 @@ sql:
             go_type: "github.com/google/uuid.UUID"
 
           # 2. Specifically override only the OPTIONAL ones to NullUUID
-          - column: "users.manager_id"
+          - column: "users.is_id"
+            go_type: "github.com/google/uuid.NullUUID"
+          - column: "users.ns_id"
+            go_type: "github.com/google/uuid.NullUUID"
+          - column: "users.dh_id"
             go_type: "github.com/google/uuid.NullUUID"
           - column: "courses.author_id"
             go_type: "github.com/google/uuid.NullUUID"
+          - column: "course_assignments.user_id"
+            go_type: "github.com/google/uuid.NullUUID"
           - column: "course_assignments.assigned_by_id"
+            go_type: "github.com/google/uuid.NullUUID"
+          - column: "training_calendar_plans.actual_training_id"
             go_type: "github.com/google/uuid.NullUUID"
 
           # 3. All other forrign keys are required
@@ -40,3 +48,7 @@ sql:
             go_type: "go-server/internal/models.LessonContentType"
           - column: "course_assignments.status"
             go_type: "go-server/internal/models.CourseAssignmentStatus"
+          - column: "training_calendar_plans.status"
+            go_type: "go-server/internal/models.CalendarPlanStatus"
+          - column: "trainings.mode_of_delivery"
+            go_type: "go-server/internal/models.DeliveryMode"

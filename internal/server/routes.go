@@ -33,12 +33,12 @@ func (s *Server) RegisterRoutes() http.Handler {
 	// Middleware Stacks
 	// grouping middlewares into slices makes applying them to routes incredibly easy and clean.
 	// We can have different stacks for different types of routes (e.g., public vs protected)
-	adminOnly := []Middleware{
+	adminOnlyMiddlewares := []Middleware{
 		middleware.RequireAuth,
 		middleware.RequireRoles(string(models.RoleAdmin)),
 	}
 
-	managerOrAdmin := []Middleware{
+	managerOrAdminMiddlewares := []Middleware{
 		middleware.RequireAuth,
 		middleware.RequireRoles(string(models.RoleAdmin), string(models.RoleManager)),
 	}
@@ -51,8 +51,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("POST /login", authHandler.HandleLogin)
 
 	// --- Protected Routes
-	mux.Handle("GET /admin/user/list", applyMiddleware(http.HandlerFunc(s.HelloWorldHandler), adminOnly...))
-	mux.Handle("GET /manager/user/list", applyMiddleware(http.HandlerFunc(s.HelloWorldHandler), managerOrAdmin...))
+	mux.Handle("GET /admin/user/list", applyMiddleware(http.HandlerFunc(s.HelloWorldHandler), adminOnlyMiddlewares...))
+	mux.Handle("GET /manager/user/list", applyMiddleware(http.HandlerFunc(s.HelloWorldHandler), managerOrAdminMiddlewares...))
 
 	// Can add more modules routes here
 

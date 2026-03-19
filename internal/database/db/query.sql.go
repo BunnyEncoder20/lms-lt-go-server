@@ -17,9 +17,10 @@ import (
 const createCourse = `-- name: CreateCourse :one
 INSERT INTO courses (
     id, title, description, author_id, cover_image_uri, status,
-    category, estimated_durations, learning_outcomes, is_strict_sequencing
+    category, estimated_durations, learning_outcomes, is_strict_sequencing,
+    version, published_at
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 RETURNING id, title, description, author_id, cover_image_uri, status, category, estimated_durations, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at
 `
@@ -35,6 +36,8 @@ type CreateCourseParams struct {
 	EstimatedDurations sql.NullInt64           `json:"estimated_durations"`
 	LearningOutcomes   string                  `json:"learning_outcomes"`
 	IsStrictSequencing bool                    `json:"is_strict_sequencing"`
+	Version            int64                   `json:"version"`
+	PublishedAt        sql.NullTime            `json:"published_at"`
 }
 
 // COURSE
@@ -50,6 +53,8 @@ func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Cou
 		arg.EstimatedDurations,
 		arg.LearningOutcomes,
 		arg.IsStrictSequencing,
+		arg.Version,
+		arg.PublishedAt,
 	)
 	var i Course
 	err := row.Scan(
@@ -71,27 +76,111 @@ func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Cou
 	return i, err
 }
 
+const createNomination = `-- name: CreateNomination :one
+INSERT INTO nominations (
+    id, status, user_id, training_id, nominated_by_id,
+    hr_completion_status, prof_fees, venue_cost, other_cost,
+    non_tems_travel, non_tems_accommodation, total_cost
+) VALUES (
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, ?
+)
+RETURNING id, status, user_id, training_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at
+`
+
+type CreateNominationParams struct {
+	ID                   uuid.UUID               `json:"id"`
+	Status               models.NominationStatus `json:"status"`
+	UserID               uuid.UUID               `json:"user_id"`
+	TrainingID           uuid.UUID               `json:"training_id"`
+	NominatedByID        uuid.UUID               `json:"nominated_by_id"`
+	HrCompletionStatus   sql.NullString          `json:"hr_completion_status"`
+	ProfFees             sql.NullFloat64         `json:"prof_fees"`
+	VenueCost            sql.NullFloat64         `json:"venue_cost"`
+	OtherCost            sql.NullFloat64         `json:"other_cost"`
+	NonTemsTravel        sql.NullFloat64         `json:"non_tems_travel"`
+	NonTemsAccommodation sql.NullFloat64         `json:"non_tems_accommodation"`
+	TotalCost            sql.NullFloat64         `json:"total_cost"`
+}
+
+// NOMINATIONS
+func (q *Queries) CreateNomination(ctx context.Context, arg CreateNominationParams) (Nomination, error) {
+	row := q.db.QueryRowContext(ctx, createNomination,
+		arg.ID,
+		arg.Status,
+		arg.UserID,
+		arg.TrainingID,
+		arg.NominatedByID,
+		arg.HrCompletionStatus,
+		arg.ProfFees,
+		arg.VenueCost,
+		arg.OtherCost,
+		arg.NonTemsTravel,
+		arg.NonTemsAccommodation,
+		arg.TotalCost,
+	)
+	var i Nomination
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.UserID,
+		&i.TrainingID,
+		&i.NominatedByID,
+		&i.HrCompletionStatus,
+		&i.ProfFees,
+		&i.VenueCost,
+		&i.OtherCost,
+		&i.NonTemsTravel,
+		&i.NonTemsAccommodation,
+		&i.TotalCost,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createTraining = `-- name: CreateTraining :one
 INSERT INTO trainings (
     id, title, description, category, start_date, end_date,
-    location, virtual_link, pre_read_uri, created_by_id
+    location, virtual_link, pre_read_uri, created_by_id,
+    deadline_days, hr_program_id, mapped_category, mode_of_delivery,
+    instructor_name, institute_partner_name, process_owner_name,
+    process_owner_email, duration_manhours, training_mandays,
+    facility_id
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, ?,
+    ?, ?, ?,
+    ?
 )
-RETURNING id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, is_active, created_at, updated_at
+RETURNING id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at
 `
 
 type CreateTrainingParams struct {
-	ID          uuid.UUID               `json:"id"`
-	Title       string                  `json:"title"`
-	Description sql.NullString          `json:"description"`
-	Category    models.TrainingCategory `json:"category"`
-	StartDate   time.Time               `json:"start_date"`
-	EndDate     time.Time               `json:"end_date"`
-	Location    sql.NullString          `json:"location"`
-	VirtualLink sql.NullString          `json:"virtual_link"`
-	PreReadUri  sql.NullString          `json:"pre_read_uri"`
-	CreatedByID uuid.UUID               `json:"created_by_id"`
+	ID                   uuid.UUID               `json:"id"`
+	Title                string                  `json:"title"`
+	Description          sql.NullString          `json:"description"`
+	Category             models.TrainingCategory `json:"category"`
+	StartDate            time.Time               `json:"start_date"`
+	EndDate              time.Time               `json:"end_date"`
+	Location             sql.NullString          `json:"location"`
+	VirtualLink          sql.NullString          `json:"virtual_link"`
+	PreReadUri           sql.NullString          `json:"pre_read_uri"`
+	CreatedByID          uuid.UUID               `json:"created_by_id"`
+	DeadlineDays         int64                   `json:"deadline_days"`
+	HrProgramID          uuid.UUID               `json:"hr_program_id"`
+	MappedCategory       string                  `json:"mapped_category"`
+	ModeOfDelivery       models.DeliveryMode     `json:"mode_of_delivery"`
+	InstructorName       string                  `json:"instructor_name"`
+	InstitutePartnerName sql.NullString          `json:"institute_partner_name"`
+	ProcessOwnerName     sql.NullString          `json:"process_owner_name"`
+	ProcessOwnerEmail    sql.NullString          `json:"process_owner_email"`
+	DurationManhours     sql.NullFloat64         `json:"duration_manhours"`
+	TrainingMandays      sql.NullFloat64         `json:"training_mandays"`
+	FacilityID           uuid.UUID               `json:"facility_id"`
 }
 
 // TRAININGS
@@ -107,6 +196,17 @@ func (q *Queries) CreateTraining(ctx context.Context, arg CreateTrainingParams) 
 		arg.VirtualLink,
 		arg.PreReadUri,
 		arg.CreatedByID,
+		arg.DeadlineDays,
+		arg.HrProgramID,
+		arg.MappedCategory,
+		arg.ModeOfDelivery,
+		arg.InstructorName,
+		arg.InstitutePartnerName,
+		arg.ProcessOwnerName,
+		arg.ProcessOwnerEmail,
+		arg.DurationManhours,
+		arg.TrainingMandays,
+		arg.FacilityID,
 	)
 	var i Training
 	err := row.Scan(
@@ -121,6 +221,16 @@ func (q *Queries) CreateTraining(ctx context.Context, arg CreateTrainingParams) 
 		&i.PreReadUri,
 		&i.CreatedByID,
 		&i.DeadlineDays,
+		&i.HrProgramID,
+		&i.MappedCategory,
+		&i.ModeOfDelivery,
+		&i.InstructorName,
+		&i.InstitutePartnerName,
+		&i.ProcessOwnerName,
+		&i.ProcessOwnerEmail,
+		&i.DurationManhours,
+		&i.TrainingMandays,
+		&i.FacilityID,
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -131,23 +241,40 @@ func (q *Queries) CreateTraining(ctx context.Context, arg CreateTrainingParams) 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
     id, pes_number, password, first_name, last_name,
-    email, role, cluster, manager_id
+    email, role, cluster, title, gender, band, grade,
+    ic, sbg, bu, segment, department, base_location,
+    is_id, ns_id, dh_id
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?, ?,
+    ?, ?, ?
 )
-RETURNING id, pes_number, password, first_name, last_name, email, role, cluster, is_active, created_at, updated_at, manager_id
+RETURNING id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
 `
 
 type CreateUserParams struct {
-	ID        uuid.UUID      `json:"id"`
-	PesNumber string         `json:"pes_number"`
-	Password  string         `json:"password"`
-	FirstName string         `json:"first_name"`
-	LastName  string         `json:"last_name"`
-	Email     string         `json:"email"`
-	Role      models.Role    `json:"role"`
-	Cluster   sql.NullString `json:"cluster"`
-	ManagerID uuid.NullUUID  `json:"manager_id"`
+	ID           uuid.UUID      `json:"id"`
+	PesNumber    string         `json:"pes_number"`
+	Password     string         `json:"password"`
+	FirstName    string         `json:"first_name"`
+	LastName     string         `json:"last_name"`
+	Email        string         `json:"email"`
+	Role         models.Role    `json:"role"`
+	Cluster      sql.NullString `json:"cluster"`
+	Title        string         `json:"title"`
+	Gender       string         `json:"gender"`
+	Band         string         `json:"band"`
+	Grade        string         `json:"grade"`
+	Ic           string         `json:"ic"`
+	Sbg          string         `json:"sbg"`
+	Bu           string         `json:"bu"`
+	Segment      string         `json:"segment"`
+	Department   string         `json:"department"`
+	BaseLocation string         `json:"base_location"`
+	IsID         uuid.NullUUID  `json:"is_id"`
+	NsID         uuid.NullUUID  `json:"ns_id"`
+	DhID         uuid.NullUUID  `json:"dh_id"`
 }
 
 // USERS
@@ -161,7 +288,19 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.Email,
 		arg.Role,
 		arg.Cluster,
-		arg.ManagerID,
+		arg.Title,
+		arg.Gender,
+		arg.Band,
+		arg.Grade,
+		arg.Ic,
+		arg.Sbg,
+		arg.Bu,
+		arg.Segment,
+		arg.Department,
+		arg.BaseLocation,
+		arg.IsID,
+		arg.NsID,
+		arg.DhID,
 	)
 	var i User
 	err := row.Scan(
@@ -173,10 +312,22 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Email,
 		&i.Role,
 		&i.Cluster,
+		&i.Title,
+		&i.Gender,
+		&i.Band,
+		&i.Grade,
+		&i.Ic,
+		&i.Sbg,
+		&i.Bu,
+		&i.Segment,
+		&i.Department,
+		&i.BaseLocation,
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.ManagerID,
+		&i.IsID,
+		&i.NsID,
+		&i.DhID,
 	)
 	return i, err
 }
@@ -237,8 +388,9 @@ func (q *Queries) GetCourseWithAuthor(ctx context.Context, id uuid.UUID) (GetCou
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, is_active, created_at, updated_at, manager_id FROM users
-WHERE email = ? LIMIT 1
+SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id FROM users
+WHERE email = ?
+LIMIT 1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -253,17 +405,30 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Email,
 		&i.Role,
 		&i.Cluster,
+		&i.Title,
+		&i.Gender,
+		&i.Band,
+		&i.Grade,
+		&i.Ic,
+		&i.Sbg,
+		&i.Bu,
+		&i.Segment,
+		&i.Department,
+		&i.BaseLocation,
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.ManagerID,
+		&i.IsID,
+		&i.NsID,
+		&i.DhID,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, is_active, created_at, updated_at, manager_id FROM users
-WHERE id = ? LIMIT 1
+SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id FROM users
+WHERE id = ?
+LIMIT 1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -278,16 +443,28 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Email,
 		&i.Role,
 		&i.Cluster,
+		&i.Title,
+		&i.Gender,
+		&i.Band,
+		&i.Grade,
+		&i.Ic,
+		&i.Sbg,
+		&i.Bu,
+		&i.Segment,
+		&i.Department,
+		&i.BaseLocation,
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.ManagerID,
+		&i.IsID,
+		&i.NsID,
+		&i.DhID,
 	)
 	return i, err
 }
 
 const listActiveTrainings = `-- name: ListActiveTrainings :many
-SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, is_active, created_at, updated_at FROM trainings
+SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
 WHERE is_active = 1
 ORDER BY start_date ASC
 `
@@ -313,6 +490,16 @@ func (q *Queries) ListActiveTrainings(ctx context.Context) ([]Training, error) {
 			&i.PreReadUri,
 			&i.CreatedByID,
 			&i.DeadlineDays,
+			&i.HrProgramID,
+			&i.MappedCategory,
+			&i.ModeOfDelivery,
+			&i.InstructorName,
+			&i.InstitutePartnerName,
+			&i.ProcessOwnerName,
+			&i.ProcessOwnerEmail,
+			&i.DurationManhours,
+			&i.TrainingMandays,
+			&i.FacilityID,
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -331,8 +518,8 @@ func (q *Queries) ListActiveTrainings(ctx context.Context) ([]Training, error) {
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, is_active, created_at, updated_at, manager_id FROM users
-ORDER BY last_name, first_name
+SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id FROM users
+ORDER BY first_name, last_name
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
@@ -353,10 +540,22 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.Email,
 			&i.Role,
 			&i.Cluster,
+			&i.Title,
+			&i.Gender,
+			&i.Band,
+			&i.Grade,
+			&i.Ic,
+			&i.Sbg,
+			&i.Bu,
+			&i.Segment,
+			&i.Department,
+			&i.BaseLocation,
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.ManagerID,
+			&i.IsID,
+			&i.NsID,
+			&i.DhID,
 		); err != nil {
 			return nil, err
 		}

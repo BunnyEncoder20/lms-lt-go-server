@@ -11,10 +11,29 @@ CREATE TABLE IF NOT EXISTS users (
         role IN ('ADMIN', 'MANAGER', 'EMPLOYEE', 'COURSE_DIRECTOR')
     ),
     cluster TEXT,
+
+    -- Demographics
+    title TEXT NOT NULL,
+    gender TEXT NOT NULL CHECK (gender IN ('M', 'F')),
+    band TEXT NOT NULL,
+    grade TEXT NOT NULL,
+
+    -- L&T Organizational Matrix
+    ic TEXT NOT NULL,
+    sbg TEXT NOT NULL,
+    bu TEXT NOT NULL,
+    segment TEXT NOT NULL,
+    department TEXT NOT NULL,
+    base_location TEXT NOT NULL,
+
     is_active BOOLEAN NOT NULL DEFAULT 1, -- SQLite uses 0/1 for boolean values
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    manager_id TEXT REFERENCES users (id) ON DELETE SET NULL
+
+    -- Supervisory Relationships
+    is_id TEXT REFERENCES users (id) ON DELETE SET NULL,
+    ns_id TEXT REFERENCES users (id) ON DELETE SET NULL,  -- Next supervisor
+    dh_id TEXT REFERENCES users (id) ON DELETE SET NULL  -- Dept Head
 );
 
 -- Triggers to emulate Prisma's @updateAt behavior
@@ -44,6 +63,26 @@ CREATE TABLE IF NOT EXISTS trainings (
     pre_read_uri TEXT,
     created_by_id TEXT NOT NULL,
     deadline_days INTEGER NOT NULL DEFAULT 2,
+
+    -- HR mappings & Category
+    hr_program_id TEXT NOT NULL,
+    mapped_category TEXT NOT NULL,
+    mode_of_delivery TEXT NOT NULL CHECK (
+        mode_of_delivery IN (
+            'IN_PERSON', 'VIRTUAL_LINK', 'HYBRID', 'E_LEARNING'
+        )
+    ),
+
+    -- Vendor & Instructor details
+    instructor_name TEXT NOT NULL,
+    institute_partner_name TEXT,
+    process_owner_name TEXT,
+    process_owner_email TEXT,
+
+    -- Logistics & Metric
+    duration_manhours REAL,
+    training_mandays REAL,
+    facility_id TEXT,
     is_active BOOLEAN NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -62,6 +101,36 @@ BEGIN
     WHERE id = old.id;
 END;
 
+-- TRAINING CALENDAR PLAN TABLE --
+CREATE TABLE IF NOT EXISTS training_calendar_plans (
+    id TEXT PRIMARY KEY,
+    program_name TEXT NOT NULL,
+    mapped_category TEXT NOT NULL,
+    target_month TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PLANNED' CHECK (
+        status IN ('PLANNED', 'FINALIZED', 'CANCELLED')
+    ),
+    actual_training_id TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- FOREIGN KEYS
+    FOREIGN KEY (actual_training_id) REFERENCES trainings (
+        id
+    ) ON DELETE SET NULL
+);
+
+-- TRAINING CALENDAR PLAN TABLE UPDATED_AT TRIGGER
+CREATE TRIGGER update_training_calendar_plans_updated_at AFTER
+UPDATE ON training_calendar_plans
+FOR EACH ROW
+WHEN old.updated_at = new.updated_at
+BEGIN
+    UPDATE training_calendar_plans SET updated_at = CURRENT_TIMESTAMP
+    WHERE id = old.id;
+END;
+
+
 -- NOMINATION TABLE --
 CREATE TABLE IF NOT EXISTS nominations (
     id TEXT PRIMARY KEY,
@@ -73,6 +142,18 @@ CREATE TABLE IF NOT EXISTS nominations (
     user_id TEXT NOT NULL,
     training_id TEXT NOT NULL,
     nominated_by_id TEXT NOT NULL,
+
+    -- Add HR completion tracking
+    hr_completion_status TEXT,
+
+    -- Cost tracking (using real for floating point currency)
+    prof_fees REAL DEFAULT 0.0,
+    venue_cost REAL DEFAULT 0.0,
+    other_cost REAL DEFAULT 0.0,
+    non_tems_travel REAL DEFAULT 0.0,
+    non_tems_accommodation REAL DEFAULT 0.0,
+    total_cost REAL DEFAULT 0.0,
+
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -199,7 +280,7 @@ CREATE TABLE IF NOT EXISTS course_assignments (
     completed_at DATETIME,
     course_id TEXT NOT NULL,
     user_id TEXT,
-    assigned_by_id TEXT NOT NULL,
+    assigned_by_id TEXT,
 
     -- FOREIGN KEYS
     FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,

@@ -57,3 +57,22 @@ const (
 	AssignmentInProgress CourseAssignmentStatus = "IN_PROGRESS"
 	AssignmentCompleted  CourseAssignmentStatus = "COMPLETED"
 )
+
+// CalendarPlanStatus enum represents the status of the planned events of calendar
+type CalendarPlanStatus string
+
+const (
+	EventPlanned   CalendarPlanStatus = "PLANNED"
+	EventFinalized CalendarPlanStatus = "FINALIZED"
+	EventCancelled CalendarPlanStatus = "CANCELLED"
+)
+
+// DeliveryMode enum represents the mdoe of delivery of the training
+type DeliveryMode string
+
+const (
+	InPerson    DeliveryMode = "IN_PERSON"
+	VirtualLink DeliveryMode = "VIRTUAL_LINK"
+	Hybrid      DeliveryMode = "HYBRID"
+	Elearning   DeliveryMode = "E_LEARNING"
+)
