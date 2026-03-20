@@ -388,14 +388,59 @@ func (q *Queries) GetCourseWithAuthor(ctx context.Context, id uuid.UUID) (GetCou
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id FROM users
+SELECT
+    id,
+    pes_number,
+    password,
+    first_name,
+    last_name,
+    email,
+    role,
+    cluster,
+    title,
+    gender,
+    band,
+    grade,
+    ic,
+    sbg,
+    bu,
+    segment,
+    department,
+    base_location,
+    is_id,
+    ns_id,
+    dh_id
+FROM users
 WHERE email = ?
-LIMIT 1
 `
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+type GetUserByEmailRow struct {
+	ID           uuid.UUID      `json:"id"`
+	PesNumber    string         `json:"pes_number"`
+	Password     string         `json:"password"`
+	FirstName    string         `json:"first_name"`
+	LastName     string         `json:"last_name"`
+	Email        string         `json:"email"`
+	Role         models.Role    `json:"role"`
+	Cluster      sql.NullString `json:"cluster"`
+	Title        string         `json:"title"`
+	Gender       string         `json:"gender"`
+	Band         string         `json:"band"`
+	Grade        string         `json:"grade"`
+	Ic           string         `json:"ic"`
+	Sbg          string         `json:"sbg"`
+	Bu           string         `json:"bu"`
+	Segment      string         `json:"segment"`
+	Department   string         `json:"department"`
+	BaseLocation string         `json:"base_location"`
+	IsID         uuid.NullUUID  `json:"is_id"`
+	NsID         uuid.NullUUID  `json:"ns_id"`
+	DhID         uuid.NullUUID  `json:"dh_id"`
+}
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
-	var i User
+	var i GetUserByEmailRow
 	err := row.Scan(
 		&i.ID,
 		&i.PesNumber,
@@ -415,9 +460,6 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Segment,
 		&i.Department,
 		&i.BaseLocation,
-		&i.IsActive,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,
@@ -426,14 +468,59 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id FROM users
+SELECT
+    id,
+    pes_number,
+    password,
+    first_name,
+    last_name,
+    email,
+    role,
+    cluster,
+    title,
+    gender,
+    band,
+    grade,
+    ic,
+    sbg,
+    bu,
+    segment,
+    department,
+    base_location,
+    is_id,
+    ns_id,
+    dh_id
+FROM users
 WHERE id = ?
-LIMIT 1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
+type GetUserByIDRow struct {
+	ID           uuid.UUID      `json:"id"`
+	PesNumber    string         `json:"pes_number"`
+	Password     string         `json:"password"`
+	FirstName    string         `json:"first_name"`
+	LastName     string         `json:"last_name"`
+	Email        string         `json:"email"`
+	Role         models.Role    `json:"role"`
+	Cluster      sql.NullString `json:"cluster"`
+	Title        string         `json:"title"`
+	Gender       string         `json:"gender"`
+	Band         string         `json:"band"`
+	Grade        string         `json:"grade"`
+	Ic           string         `json:"ic"`
+	Sbg          string         `json:"sbg"`
+	Bu           string         `json:"bu"`
+	Segment      string         `json:"segment"`
+	Department   string         `json:"department"`
+	BaseLocation string         `json:"base_location"`
+	IsID         uuid.NullUUID  `json:"is_id"`
+	NsID         uuid.NullUUID  `json:"ns_id"`
+	DhID         uuid.NullUUID  `json:"dh_id"`
+}
+
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserByID, id)
-	var i User
+	var i GetUserByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.PesNumber,
@@ -453,9 +540,6 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Segment,
 		&i.Department,
 		&i.BaseLocation,
-		&i.IsActive,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,
@@ -464,20 +548,68 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 }
 
 const listActiveTrainings = `-- name: ListActiveTrainings :many
-SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
+SELECT
+    id,
+    title,
+    description,
+    category,
+    start_date,
+    end_date,
+    location,
+    virtual_link,
+    pre_read_uri,
+    created_by_id,
+    deadline_days,
+    hr_program_id,
+    mapped_category,
+    mode_of_delivery,
+    instructor_name,
+    institute_partner_name,
+    process_owner_name,
+    process_owner_email,
+    duration_manhours,
+    training_mandays,
+    facility_id,
+    is_active
+FROM trainings
 WHERE is_active = 1
 ORDER BY start_date ASC
 `
 
-func (q *Queries) ListActiveTrainings(ctx context.Context) ([]Training, error) {
+type ListActiveTrainingsRow struct {
+	ID                   uuid.UUID               `json:"id"`
+	Title                string                  `json:"title"`
+	Description          sql.NullString          `json:"description"`
+	Category             models.TrainingCategory `json:"category"`
+	StartDate            time.Time               `json:"start_date"`
+	EndDate              time.Time               `json:"end_date"`
+	Location             sql.NullString          `json:"location"`
+	VirtualLink          sql.NullString          `json:"virtual_link"`
+	PreReadUri           sql.NullString          `json:"pre_read_uri"`
+	CreatedByID          uuid.UUID               `json:"created_by_id"`
+	DeadlineDays         int64                   `json:"deadline_days"`
+	HrProgramID          uuid.UUID               `json:"hr_program_id"`
+	MappedCategory       string                  `json:"mapped_category"`
+	ModeOfDelivery       models.DeliveryMode     `json:"mode_of_delivery"`
+	InstructorName       string                  `json:"instructor_name"`
+	InstitutePartnerName sql.NullString          `json:"institute_partner_name"`
+	ProcessOwnerName     sql.NullString          `json:"process_owner_name"`
+	ProcessOwnerEmail    sql.NullString          `json:"process_owner_email"`
+	DurationManhours     sql.NullFloat64         `json:"duration_manhours"`
+	TrainingMandays      sql.NullFloat64         `json:"training_mandays"`
+	FacilityID           uuid.UUID               `json:"facility_id"`
+	IsActive             bool                    `json:"is_active"`
+}
+
+func (q *Queries) ListActiveTrainings(ctx context.Context) ([]ListActiveTrainingsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listActiveTrainings)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Training
+	var items []ListActiveTrainingsRow
 	for rows.Next() {
-		var i Training
+		var i ListActiveTrainingsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -501,8 +633,6 @@ func (q *Queries) ListActiveTrainings(ctx context.Context) ([]Training, error) {
 			&i.TrainingMandays,
 			&i.FacilityID,
 			&i.IsActive,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -518,19 +648,65 @@ func (q *Queries) ListActiveTrainings(ctx context.Context) ([]Training, error) {
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id FROM users
+SELECT
+    id,
+    pes_number,
+    password,
+    first_name,
+    last_name,
+    email,
+    role,
+    cluster,
+    title,
+    gender,
+    band,
+    grade,
+    ic,
+    sbg,
+    bu,
+    segment,
+    department,
+    base_location,
+    is_id,
+    ns_id,
+    dh_id
+FROM users
 ORDER BY first_name, last_name
 `
 
-func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
+type ListUsersRow struct {
+	ID           uuid.UUID      `json:"id"`
+	PesNumber    string         `json:"pes_number"`
+	Password     string         `json:"password"`
+	FirstName    string         `json:"first_name"`
+	LastName     string         `json:"last_name"`
+	Email        string         `json:"email"`
+	Role         models.Role    `json:"role"`
+	Cluster      sql.NullString `json:"cluster"`
+	Title        string         `json:"title"`
+	Gender       string         `json:"gender"`
+	Band         string         `json:"band"`
+	Grade        string         `json:"grade"`
+	Ic           string         `json:"ic"`
+	Sbg          string         `json:"sbg"`
+	Bu           string         `json:"bu"`
+	Segment      string         `json:"segment"`
+	Department   string         `json:"department"`
+	BaseLocation string         `json:"base_location"`
+	IsID         uuid.NullUUID  `json:"is_id"`
+	NsID         uuid.NullUUID  `json:"ns_id"`
+	DhID         uuid.NullUUID  `json:"dh_id"`
+}
+
+func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 	rows, err := q.db.QueryContext(ctx, listUsers)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []User
+	var items []ListUsersRow
 	for rows.Next() {
-		var i User
+		var i ListUsersRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.PesNumber,
@@ -550,9 +726,6 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.Segment,
 			&i.Department,
 			&i.BaseLocation,
-			&i.IsActive,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 			&i.IsID,
 			&i.NsID,
 			&i.DhID,

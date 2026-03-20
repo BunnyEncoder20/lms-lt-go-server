@@ -14,17 +14,81 @@ INSERT INTO users (
 RETURNING *;
 
 -- name: GetUserByID :one
-SELECT * FROM users
-WHERE id = ?
-LIMIT 1;
+SELECT
+    id,
+    pes_number,
+    password,
+    first_name,
+    last_name,
+    email,
+    role,
+    cluster,
+    title,
+    gender,
+    band,
+    grade,
+    ic,
+    sbg,
+    bu,
+    segment,
+    department,
+    base_location,
+    is_id,
+    ns_id,
+    dh_id
+FROM users
+WHERE id = ?;
 
 -- name: GetUserByEmail :one
-SELECT * FROM users
-WHERE email = ?
-LIMIT 1;
+SELECT
+    id,
+    pes_number,
+    password,
+    first_name,
+    last_name,
+    email,
+    role,
+    cluster,
+    title,
+    gender,
+    band,
+    grade,
+    ic,
+    sbg,
+    bu,
+    segment,
+    department,
+    base_location,
+    is_id,
+    ns_id,
+    dh_id
+FROM users
+WHERE email = ?;
 
 -- name: ListUsers :many
-SELECT * FROM users
+SELECT
+    id,
+    pes_number,
+    password,
+    first_name,
+    last_name,
+    email,
+    role,
+    cluster,
+    title,
+    gender,
+    band,
+    grade,
+    ic,
+    sbg,
+    bu,
+    segment,
+    department,
+    base_location,
+    is_id,
+    ns_id,
+    dh_id
+FROM users
 ORDER BY first_name, last_name;
 
 -- name: UpdateUserStatus :exec
@@ -52,7 +116,30 @@ INSERT INTO trainings (
 RETURNING *;
 
 -- name: ListActiveTrainings :many
-SELECT * FROM trainings
+SELECT
+    id,
+    title,
+    description,
+    category,
+    start_date,
+    end_date,
+    location,
+    virtual_link,
+    pre_read_uri,
+    created_by_id,
+    deadline_days,
+    hr_program_id,
+    mapped_category,
+    mode_of_delivery,
+    instructor_name,
+    institute_partner_name,
+    process_owner_name,
+    process_owner_email,
+    duration_manhours,
+    training_mandays,
+    facility_id,
+    is_active
+FROM trainings
 WHERE is_active = 1
 ORDER BY start_date ASC;
 
