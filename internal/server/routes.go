@@ -51,6 +51,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("POST /login", authHandler.HandleLogin)
 
 	// --- Protected Routes
+	mux.Handle("GET /me", middleware.RequireAuth(http.HandlerFunc(authHandler.HandleMe)))
 	mux.Handle("GET /admin/user/list", applyMiddleware(http.HandlerFunc(s.HelloWorldHandler), adminOnlyMiddlewares...))
 	mux.Handle("GET /manager/user/list", applyMiddleware(http.HandlerFunc(s.HelloWorldHandler), managerOrAdminMiddlewares...))
 

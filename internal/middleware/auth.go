@@ -14,15 +14,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// 1. Define custom types for context keys to prevent conlision with third party auths (not in this project at least)
-// NOTE: never user string types for making context with values
-type contextKey string
-
-const (
-	UserIDKey   contextKey = "user_ID"
-	UserRoleKey contextKey = "user_role"
-)
-
 // RequireAuth is a middleware for attaching the user's info onto the request context
 func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -57,8 +48,8 @@ func RequireAuth(next http.Handler) http.Handler {
 		}
 
 		// 3. Put the extracted claims into the request context
-		ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
-		ctx = context.WithValue(ctx, UserRoleKey, claims.Role)
+		ctx := context.WithValue(r.Context(), models.UserIDKey, claims.UserID)
+		ctx = context.WithValue(ctx, models.UserRoleKey, claims.Role)
 
 		// 4. Create a new request with the updated context and pass it to the next handler
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -74,7 +65,7 @@ func RequireRoles(allowedRoles ...string) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// 1. Pull the role safely out of the context
 			// We use the Type Assertion .(string) again because Context values are stored as empty interfaces (any)
-			if userRole, ok := r.Context().Value(UserRoleKey).(string); !ok || userRole == "" {
+			if userRole, ok := r.Context().Value(models.UserRoleKey).(string); !ok || userRole == "" {
 				// this acts as a failsafe in case RequireRoles is accidentally used without RequireAuth
 				models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 					Message: "unauthorized: role identity missing",

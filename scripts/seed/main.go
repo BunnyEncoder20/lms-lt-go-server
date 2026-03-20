@@ -30,11 +30,11 @@ func main() {
 	if err := godotenv.Load("./.env"); err != nil {
 		log.Println("❗️ WARN: could not load .env file, DB_URL is likely empty", err)
 	}
-	dbUrl := os.Getenv("DB_URL")
-	if dbUrl == "" {
-		dbUrl = "local_lms.db" // Fallback
+	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		dbURL = "local_lms.db" // Fallback
 	}
-	conn, err := sql.Open("sqlite", dbUrl)
+	conn, err := sql.Open("sqlite", dbURL)
 	if err != nil {
 		log.Fatalf("Failed to open database: %v", err)
 	}

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -20,6 +21,16 @@ func NewHandler(svc Service) *Handler {
 }
 
 func (h *Handler) HandleMe(w http.ResponseWriter, r *http.Request) {
+	// checking if the values are actually in the context
+	if r.Context().Value(models.UserIDKey) == nil || r.Context().Value(models.UserRoleKey) == nil {
+		log.Println("Context values missing: UserIDKey or UserRoleKey not found in context", r.Context().Value("UserIDKey"), r.Context().Value("UserRoleKey"))
+		models.WriteJSON(w, http.StatusNotFound, models.JSONResponse{
+			Success: false,
+			Message: "the token data could not extracted from the context, this should never happen if the middleware is working correctly",
+		})
+		return
+	}
+
 	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: "Returing user data from auth token",
@@ -27,8 +38,8 @@ func (h *Handler) HandleMe(w http.ResponseWriter, r *http.Request) {
 			UserID   any `json:"userId"`
 			UserRole any `json:"userRole"`
 		}{
-			UserID:   r.Context().Value("UserIDKey"),
-			UserRole: r.Context().Value("UserRoleKey"),
+			UserID:   r.Context().Value(models.UserIDKey),
+			UserRole: r.Context().Value(models.UserRoleKey),
 		}, // This is just an example, you would typically query the database for the user's info using the ID from the claims
 	})
 }
