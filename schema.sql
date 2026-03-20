@@ -51,7 +51,7 @@ END;
 -- TRAINING TABLE --
 CREATE TABLE IF NOT EXISTS trainings (
     id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
+    title TEXT NOT NULL UNIQUE,
     description TEXT,
     category TEXT NOT NULL CHECK (
         category IN ('TECHNICAL', 'BEHAVIORAL')
@@ -97,7 +97,7 @@ UPDATE ON trainings
 FOR EACH ROW
 WHEN old.updated_at = new.updated_at
 BEGIN
-    UPDATE trainings SET update_at = CURRENT_TIMESTAMP
+    UPDATE trainings SET updated_at = CURRENT_TIMESTAMP
     WHERE id = old.id;
 END;
 
@@ -180,7 +180,7 @@ END;
 -- TABLE COURSE --
 CREATE TABLE IF NOT EXISTS courses (
     id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
+    title TEXT NOT NULL UNIQUE,
     description TEXT,
     author_id TEXT,
     cover_image_uri TEXT,
@@ -224,7 +224,9 @@ CREATE TABLE IF NOT EXISTS course_modules (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- FOREIGN KEYS
-    FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE
+    FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
+
+    UNIQUE (course_id, title)
 );
 
 -- COURSE MODULE TABLE UPDATED_AT TRIGGER
@@ -254,7 +256,9 @@ CREATE TABLE IF NOT EXISTS lessons (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- FOREIGN KEYS
-    FOREIGN KEY (module_id) REFERENCES course_modules (id) ON DELETE CASCADE
+    FOREIGN KEY (module_id) REFERENCES course_modules (id) ON DELETE CASCADE,
+
+    UNIQUE (module_id, title)
 );
 
 -- LESSON TABLE UPDATED_AT TRIGGER

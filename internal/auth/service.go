@@ -4,6 +4,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"go-server/internal/database"
@@ -40,11 +41,13 @@ func (s *service) Login(ctx context.Context, email, password string) (string, er
 	// 1. Get user from the db
 	user, err := s.db.Read().GetUserByEmail(ctx, email)
 	if err != nil {
+		log.Println(err)
 		return "", errors.New("invalid credentials")
 	}
 
 	// 2. Check password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		log.Println(err)
 		return "", errors.New("invalid credentials")
 	}
 

@@ -76,6 +76,143 @@ func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Cou
 	return i, err
 }
 
+const createCourseAssignment = `-- name: CreateCourseAssignment :one
+INSERT INTO course_assignments (
+    id, status, progress_percentage, course_version, due_date,
+    course_id, user_id, assigned_by_id
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, status, progress_percentage, course_version, due_date, enrolled_at, completed_at, course_id, user_id, assigned_by_id
+`
+
+type CreateCourseAssignmentParams struct {
+	ID                 uuid.UUID                     `json:"id"`
+	Status             models.CourseAssignmentStatus `json:"status"`
+	ProgressPercentage float64                       `json:"progress_percentage"`
+	CourseVersion      int64                         `json:"course_version"`
+	DueDate            sql.NullTime                  `json:"due_date"`
+	CourseID           uuid.UUID                     `json:"course_id"`
+	UserID             uuid.NullUUID                 `json:"user_id"`
+	AssignedByID       uuid.NullUUID                 `json:"assigned_by_id"`
+}
+
+// COURSE ASSIGNMENT
+func (q *Queries) CreateCourseAssignment(ctx context.Context, arg CreateCourseAssignmentParams) (CourseAssignment, error) {
+	row := q.db.QueryRowContext(ctx, createCourseAssignment,
+		arg.ID,
+		arg.Status,
+		arg.ProgressPercentage,
+		arg.CourseVersion,
+		arg.DueDate,
+		arg.CourseID,
+		arg.UserID,
+		arg.AssignedByID,
+	)
+	var i CourseAssignment
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.ProgressPercentage,
+		&i.CourseVersion,
+		&i.DueDate,
+		&i.EnrolledAt,
+		&i.CompletedAt,
+		&i.CourseID,
+		&i.UserID,
+		&i.AssignedByID,
+	)
+	return i, err
+}
+
+const createCourseModule = `-- name: CreateCourseModule :one
+INSERT INTO course_modules (
+    id, title, course_id, description, sequence_order
+) VALUES (
+    ?, ?, ?, ?, ?
+)
+RETURNING id, title, course_id, description, sequence_order, created_at, updated_at
+`
+
+type CreateCourseModuleParams struct {
+	ID            uuid.UUID      `json:"id"`
+	Title         string         `json:"title"`
+	CourseID      uuid.UUID      `json:"course_id"`
+	Description   sql.NullString `json:"description"`
+	SequenceOrder int64          `json:"sequence_order"`
+}
+
+// COURSE MODULE
+func (q *Queries) CreateCourseModule(ctx context.Context, arg CreateCourseModuleParams) (CourseModule, error) {
+	row := q.db.QueryRowContext(ctx, createCourseModule,
+		arg.ID,
+		arg.Title,
+		arg.CourseID,
+		arg.Description,
+		arg.SequenceOrder,
+	)
+	var i CourseModule
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.CourseID,
+		&i.Description,
+		&i.SequenceOrder,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createLesson = `-- name: CreateLesson :one
+INSERT INTO lessons (
+    id, title, content_type, asset_uri, rich_text_content,
+    duration_minutes, sequence_order, module_id
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?
+)
+RETURNING id, title, content_type, asset_uri, rich_text_content, duration_minutes, sequence_order, module_id, created_at, updated_at
+`
+
+type CreateLessonParams struct {
+	ID              uuid.UUID                `json:"id"`
+	Title           string                   `json:"title"`
+	ContentType     models.LessonContentType `json:"content_type"`
+	AssetUri        sql.NullString           `json:"asset_uri"`
+	RichTextContent sql.NullString           `json:"rich_text_content"`
+	DurationMinutes sql.NullInt64            `json:"duration_minutes"`
+	SequenceOrder   int64                    `json:"sequence_order"`
+	ModuleID        uuid.UUID                `json:"module_id"`
+}
+
+// LESSON
+func (q *Queries) CreateLesson(ctx context.Context, arg CreateLessonParams) (Lesson, error) {
+	row := q.db.QueryRowContext(ctx, createLesson,
+		arg.ID,
+		arg.Title,
+		arg.ContentType,
+		arg.AssetUri,
+		arg.RichTextContent,
+		arg.DurationMinutes,
+		arg.SequenceOrder,
+		arg.ModuleID,
+	)
+	var i Lesson
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.ContentType,
+		&i.AssetUri,
+		&i.RichTextContent,
+		&i.DurationMinutes,
+		&i.SequenceOrder,
+		&i.ModuleID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createNomination = `-- name: CreateNomination :one
 INSERT INTO nominations (
     id, status, user_id, training_id, nominated_by_id,
@@ -332,6 +469,32 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const getCourseByTitle = `-- name: GetCourseByTitle :one
+SELECT id, title, description, author_id, cover_image_uri, status, category, estimated_durations, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at FROM courses WHERE title = ?
+`
+
+func (q *Queries) GetCourseByTitle(ctx context.Context, title string) (Course, error) {
+	row := q.db.QueryRowContext(ctx, getCourseByTitle, title)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.AuthorID,
+		&i.CoverImageUri,
+		&i.Status,
+		&i.Category,
+		&i.EstimatedDurations,
+		&i.LearningOutcomes,
+		&i.IsStrictSequencing,
+		&i.Version,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getCourseWithAuthor = `-- name: GetCourseWithAuthor :one
 SELECT
     c.id, c.title, c.description, c.author_id, c.cover_image_uri, c.status, c.category, c.estimated_durations, c.learning_outcomes, c.is_strict_sequencing, c.version, c.published_at, c.created_at, c.updated_at,
@@ -362,7 +525,6 @@ type GetCourseWithAuthorRow struct {
 	AuthorLastName     string                  `json:"author_last_name"`
 }
 
-// Example of a join to handle that prisma 'author' relation
 func (q *Queries) GetCourseWithAuthor(ctx context.Context, id uuid.UUID) (GetCourseWithAuthorRow, error) {
 	row := q.db.QueryRowContext(ctx, getCourseWithAuthor, id)
 	var i GetCourseWithAuthorRow
@@ -387,60 +549,49 @@ func (q *Queries) GetCourseWithAuthor(ctx context.Context, id uuid.UUID) (GetCou
 	return i, err
 }
 
-const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT
-    id,
-    pes_number,
-    password,
-    first_name,
-    last_name,
-    email,
-    role,
-    cluster,
-    title,
-    gender,
-    band,
-    grade,
-    ic,
-    sbg,
-    bu,
-    segment,
-    department,
-    base_location,
-    is_id,
-    ns_id,
-    dh_id
-FROM users
-WHERE email = ?
+const getTrainingByTitle = `-- name: GetTrainingByTitle :one
+SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings WHERE title = ?
 `
 
-type GetUserByEmailRow struct {
-	ID           uuid.UUID      `json:"id"`
-	PesNumber    string         `json:"pes_number"`
-	Password     string         `json:"password"`
-	FirstName    string         `json:"first_name"`
-	LastName     string         `json:"last_name"`
-	Email        string         `json:"email"`
-	Role         models.Role    `json:"role"`
-	Cluster      sql.NullString `json:"cluster"`
-	Title        string         `json:"title"`
-	Gender       string         `json:"gender"`
-	Band         string         `json:"band"`
-	Grade        string         `json:"grade"`
-	Ic           string         `json:"ic"`
-	Sbg          string         `json:"sbg"`
-	Bu           string         `json:"bu"`
-	Segment      string         `json:"segment"`
-	Department   string         `json:"department"`
-	BaseLocation string         `json:"base_location"`
-	IsID         uuid.NullUUID  `json:"is_id"`
-	NsID         uuid.NullUUID  `json:"ns_id"`
-	DhID         uuid.NullUUID  `json:"dh_id"`
+func (q *Queries) GetTrainingByTitle(ctx context.Context, title string) (Training, error) {
+	row := q.db.QueryRowContext(ctx, getTrainingByTitle, title)
+	var i Training
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.Category,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Location,
+		&i.VirtualLink,
+		&i.PreReadUri,
+		&i.CreatedByID,
+		&i.DeadlineDays,
+		&i.HrProgramID,
+		&i.MappedCategory,
+		&i.ModeOfDelivery,
+		&i.InstructorName,
+		&i.InstitutePartnerName,
+		&i.ProcessOwnerName,
+		&i.ProcessOwnerEmail,
+		&i.DurationManhours,
+		&i.TrainingMandays,
+		&i.FacilityID,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id FROM users WHERE email = ?
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
 	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
-	var i GetUserByEmailRow
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.PesNumber,
@@ -460,6 +611,9 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 		&i.Segment,
 		&i.Department,
 		&i.BaseLocation,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,
@@ -468,59 +622,12 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT
-    id,
-    pes_number,
-    password,
-    first_name,
-    last_name,
-    email,
-    role,
-    cluster,
-    title,
-    gender,
-    band,
-    grade,
-    ic,
-    sbg,
-    bu,
-    segment,
-    department,
-    base_location,
-    is_id,
-    ns_id,
-    dh_id
-FROM users
-WHERE id = ?
+SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id FROM users WHERE id = ?
 `
 
-type GetUserByIDRow struct {
-	ID           uuid.UUID      `json:"id"`
-	PesNumber    string         `json:"pes_number"`
-	Password     string         `json:"password"`
-	FirstName    string         `json:"first_name"`
-	LastName     string         `json:"last_name"`
-	Email        string         `json:"email"`
-	Role         models.Role    `json:"role"`
-	Cluster      sql.NullString `json:"cluster"`
-	Title        string         `json:"title"`
-	Gender       string         `json:"gender"`
-	Band         string         `json:"band"`
-	Grade        string         `json:"grade"`
-	Ic           string         `json:"ic"`
-	Sbg          string         `json:"sbg"`
-	Bu           string         `json:"bu"`
-	Segment      string         `json:"segment"`
-	Department   string         `json:"department"`
-	BaseLocation string         `json:"base_location"`
-	IsID         uuid.NullUUID  `json:"is_id"`
-	NsID         uuid.NullUUID  `json:"ns_id"`
-	DhID         uuid.NullUUID  `json:"dh_id"`
-}
-
-func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error) {
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	row := q.db.QueryRowContext(ctx, getUserByID, id)
-	var i GetUserByIDRow
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.PesNumber,
@@ -540,6 +647,45 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow
 		&i.Segment,
 		&i.Department,
 		&i.BaseLocation,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.IsID,
+		&i.NsID,
+		&i.DhID,
+	)
+	return i, err
+}
+
+const getUserByPesNumber = `-- name: GetUserByPesNumber :one
+SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id FROM users WHERE pes_number = ?
+`
+
+func (q *Queries) GetUserByPesNumber(ctx context.Context, pesNumber string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByPesNumber, pesNumber)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.PesNumber,
+		&i.Password,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.Role,
+		&i.Cluster,
+		&i.Title,
+		&i.Gender,
+		&i.Band,
+		&i.Grade,
+		&i.Ic,
+		&i.Sbg,
+		&i.Bu,
+		&i.Segment,
+		&i.Department,
+		&i.BaseLocation,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,
@@ -548,68 +694,18 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow
 }
 
 const listActiveTrainings = `-- name: ListActiveTrainings :many
-SELECT
-    id,
-    title,
-    description,
-    category,
-    start_date,
-    end_date,
-    location,
-    virtual_link,
-    pre_read_uri,
-    created_by_id,
-    deadline_days,
-    hr_program_id,
-    mapped_category,
-    mode_of_delivery,
-    instructor_name,
-    institute_partner_name,
-    process_owner_name,
-    process_owner_email,
-    duration_manhours,
-    training_mandays,
-    facility_id,
-    is_active
-FROM trainings
-WHERE is_active = 1
-ORDER BY start_date ASC
+SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings WHERE is_active = 1 ORDER BY start_date ASC
 `
 
-type ListActiveTrainingsRow struct {
-	ID                   uuid.UUID               `json:"id"`
-	Title                string                  `json:"title"`
-	Description          sql.NullString          `json:"description"`
-	Category             models.TrainingCategory `json:"category"`
-	StartDate            time.Time               `json:"start_date"`
-	EndDate              time.Time               `json:"end_date"`
-	Location             sql.NullString          `json:"location"`
-	VirtualLink          sql.NullString          `json:"virtual_link"`
-	PreReadUri           sql.NullString          `json:"pre_read_uri"`
-	CreatedByID          uuid.UUID               `json:"created_by_id"`
-	DeadlineDays         int64                   `json:"deadline_days"`
-	HrProgramID          uuid.UUID               `json:"hr_program_id"`
-	MappedCategory       string                  `json:"mapped_category"`
-	ModeOfDelivery       models.DeliveryMode     `json:"mode_of_delivery"`
-	InstructorName       string                  `json:"instructor_name"`
-	InstitutePartnerName sql.NullString          `json:"institute_partner_name"`
-	ProcessOwnerName     sql.NullString          `json:"process_owner_name"`
-	ProcessOwnerEmail    sql.NullString          `json:"process_owner_email"`
-	DurationManhours     sql.NullFloat64         `json:"duration_manhours"`
-	TrainingMandays      sql.NullFloat64         `json:"training_mandays"`
-	FacilityID           uuid.UUID               `json:"facility_id"`
-	IsActive             bool                    `json:"is_active"`
-}
-
-func (q *Queries) ListActiveTrainings(ctx context.Context) ([]ListActiveTrainingsRow, error) {
+func (q *Queries) ListActiveTrainings(ctx context.Context) ([]Training, error) {
 	rows, err := q.db.QueryContext(ctx, listActiveTrainings)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListActiveTrainingsRow
+	var items []Training
 	for rows.Next() {
-		var i ListActiveTrainingsRow
+		var i Training
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -633,6 +729,49 @@ func (q *Queries) ListActiveTrainings(ctx context.Context) ([]ListActiveTraining
 			&i.TrainingMandays,
 			&i.FacilityID,
 			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLessonsByCourse = `-- name: ListLessonsByCourse :many
+SELECT l.id, l.title, l.content_type, l.asset_uri, l.rich_text_content, l.duration_minutes, l.sequence_order, l.module_id, l.created_at, l.updated_at FROM lessons l
+JOIN course_modules m ON l.module_id = m.id
+WHERE m.course_id = ?
+ORDER BY m.sequence_order, l.sequence_order
+`
+
+func (q *Queries) ListLessonsByCourse(ctx context.Context, courseID uuid.UUID) ([]Lesson, error) {
+	rows, err := q.db.QueryContext(ctx, listLessonsByCourse, courseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Lesson
+	for rows.Next() {
+		var i Lesson
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.ContentType,
+			&i.AssetUri,
+			&i.RichTextContent,
+			&i.DurationMinutes,
+			&i.SequenceOrder,
+			&i.ModuleID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -648,33 +787,537 @@ func (q *Queries) ListActiveTrainings(ctx context.Context) ([]ListActiveTraining
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT
-    id,
-    pes_number,
-    password,
-    first_name,
-    last_name,
-    email,
-    role,
-    cluster,
-    title,
-    gender,
-    band,
-    grade,
-    ic,
-    sbg,
-    bu,
-    segment,
-    department,
-    base_location,
-    is_id,
-    ns_id,
-    dh_id
-FROM users
-ORDER BY first_name, last_name
+SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id FROM users ORDER BY first_name, last_name
 `
 
-type ListUsersRow struct {
+func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, listUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.PesNumber,
+			&i.Password,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.Role,
+			&i.Cluster,
+			&i.Title,
+			&i.Gender,
+			&i.Band,
+			&i.Grade,
+			&i.Ic,
+			&i.Sbg,
+			&i.Bu,
+			&i.Segment,
+			&i.Department,
+			&i.BaseLocation,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.IsID,
+			&i.NsID,
+			&i.DhID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateUserStatus = `-- name: UpdateUserStatus :exec
+UPDATE users SET is_active = ? WHERE id = ?
+`
+
+type UpdateUserStatusParams struct {
+	IsActive bool      `json:"is_active"`
+	ID       uuid.UUID `json:"id"`
+}
+
+func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserStatus, arg.IsActive, arg.ID)
+	return err
+}
+
+const upsertCourse = `-- name: UpsertCourse :one
+INSERT INTO courses (
+    id, title, description, author_id, cover_image_uri, status,
+    category, estimated_durations, learning_outcomes, is_strict_sequencing,
+    version, published_at
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+)
+ON CONFLICT(title) DO UPDATE SET
+    description = excluded.description,
+    author_id = excluded.author_id,
+    status = excluded.status,
+    category = excluded.category,
+    estimated_durations = excluded.estimated_durations,
+    learning_outcomes = excluded.learning_outcomes,
+    is_strict_sequencing = excluded.is_strict_sequencing,
+    version = excluded.version,
+    published_at = excluded.published_at,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING id, title, description, author_id, cover_image_uri, status, category, estimated_durations, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at
+`
+
+type UpsertCourseParams struct {
+	ID                 uuid.UUID               `json:"id"`
+	Title              string                  `json:"title"`
+	Description        sql.NullString          `json:"description"`
+	AuthorID           uuid.NullUUID           `json:"author_id"`
+	CoverImageUri      sql.NullString          `json:"cover_image_uri"`
+	Status             models.CourseStatus     `json:"status"`
+	Category           models.TrainingCategory `json:"category"`
+	EstimatedDurations sql.NullInt64           `json:"estimated_durations"`
+	LearningOutcomes   string                  `json:"learning_outcomes"`
+	IsStrictSequencing bool                    `json:"is_strict_sequencing"`
+	Version            int64                   `json:"version"`
+	PublishedAt        sql.NullTime            `json:"published_at"`
+}
+
+func (q *Queries) UpsertCourse(ctx context.Context, arg UpsertCourseParams) (Course, error) {
+	row := q.db.QueryRowContext(ctx, upsertCourse,
+		arg.ID,
+		arg.Title,
+		arg.Description,
+		arg.AuthorID,
+		arg.CoverImageUri,
+		arg.Status,
+		arg.Category,
+		arg.EstimatedDurations,
+		arg.LearningOutcomes,
+		arg.IsStrictSequencing,
+		arg.Version,
+		arg.PublishedAt,
+	)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.AuthorID,
+		&i.CoverImageUri,
+		&i.Status,
+		&i.Category,
+		&i.EstimatedDurations,
+		&i.LearningOutcomes,
+		&i.IsStrictSequencing,
+		&i.Version,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertCourseAssignment = `-- name: UpsertCourseAssignment :one
+INSERT INTO course_assignments (
+    id, status, progress_percentage, course_version, due_date,
+    course_id, user_id, assigned_by_id
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?
+)
+ON CONFLICT(user_id, course_id) DO UPDATE SET
+    status = excluded.status,
+    progress_percentage = excluded.progress_percentage,
+    course_version = excluded.course_version,
+    due_date = excluded.due_date,
+    assigned_by_id = excluded.assigned_by_id
+RETURNING id, status, progress_percentage, course_version, due_date, enrolled_at, completed_at, course_id, user_id, assigned_by_id
+`
+
+type UpsertCourseAssignmentParams struct {
+	ID                 uuid.UUID                     `json:"id"`
+	Status             models.CourseAssignmentStatus `json:"status"`
+	ProgressPercentage float64                       `json:"progress_percentage"`
+	CourseVersion      int64                         `json:"course_version"`
+	DueDate            sql.NullTime                  `json:"due_date"`
+	CourseID           uuid.UUID                     `json:"course_id"`
+	UserID             uuid.NullUUID                 `json:"user_id"`
+	AssignedByID       uuid.NullUUID                 `json:"assigned_by_id"`
+}
+
+func (q *Queries) UpsertCourseAssignment(ctx context.Context, arg UpsertCourseAssignmentParams) (CourseAssignment, error) {
+	row := q.db.QueryRowContext(ctx, upsertCourseAssignment,
+		arg.ID,
+		arg.Status,
+		arg.ProgressPercentage,
+		arg.CourseVersion,
+		arg.DueDate,
+		arg.CourseID,
+		arg.UserID,
+		arg.AssignedByID,
+	)
+	var i CourseAssignment
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.ProgressPercentage,
+		&i.CourseVersion,
+		&i.DueDate,
+		&i.EnrolledAt,
+		&i.CompletedAt,
+		&i.CourseID,
+		&i.UserID,
+		&i.AssignedByID,
+	)
+	return i, err
+}
+
+const upsertCourseModule = `-- name: UpsertCourseModule :one
+INSERT INTO course_modules (
+    id, title, course_id, description, sequence_order
+) VALUES (
+    ?, ?, ?, ?, ?
+)
+ON CONFLICT(course_id, title) DO UPDATE SET
+    description = excluded.description,
+    sequence_order = excluded.sequence_order,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING id, title, course_id, description, sequence_order, created_at, updated_at
+`
+
+type UpsertCourseModuleParams struct {
+	ID            uuid.UUID      `json:"id"`
+	Title         string         `json:"title"`
+	CourseID      uuid.UUID      `json:"course_id"`
+	Description   sql.NullString `json:"description"`
+	SequenceOrder int64          `json:"sequence_order"`
+}
+
+func (q *Queries) UpsertCourseModule(ctx context.Context, arg UpsertCourseModuleParams) (CourseModule, error) {
+	row := q.db.QueryRowContext(ctx, upsertCourseModule,
+		arg.ID,
+		arg.Title,
+		arg.CourseID,
+		arg.Description,
+		arg.SequenceOrder,
+	)
+	var i CourseModule
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.CourseID,
+		&i.Description,
+		&i.SequenceOrder,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertLesson = `-- name: UpsertLesson :one
+INSERT INTO lessons (
+    id, title, content_type, asset_uri, rich_text_content,
+    duration_minutes, sequence_order, module_id
+) VALUES (
+    ?, ?, ?, ?, ?, ?, ?, ?
+)
+ON CONFLICT(module_id, title) DO UPDATE SET
+    content_type = excluded.content_type,
+    asset_uri = excluded.asset_uri,
+    rich_text_content = excluded.rich_text_content,
+    duration_minutes = excluded.duration_minutes,
+    sequence_order = excluded.sequence_order,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING id, title, content_type, asset_uri, rich_text_content, duration_minutes, sequence_order, module_id, created_at, updated_at
+`
+
+type UpsertLessonParams struct {
+	ID              uuid.UUID                `json:"id"`
+	Title           string                   `json:"title"`
+	ContentType     models.LessonContentType `json:"content_type"`
+	AssetUri        sql.NullString           `json:"asset_uri"`
+	RichTextContent sql.NullString           `json:"rich_text_content"`
+	DurationMinutes sql.NullInt64            `json:"duration_minutes"`
+	SequenceOrder   int64                    `json:"sequence_order"`
+	ModuleID        uuid.UUID                `json:"module_id"`
+}
+
+func (q *Queries) UpsertLesson(ctx context.Context, arg UpsertLessonParams) (Lesson, error) {
+	row := q.db.QueryRowContext(ctx, upsertLesson,
+		arg.ID,
+		arg.Title,
+		arg.ContentType,
+		arg.AssetUri,
+		arg.RichTextContent,
+		arg.DurationMinutes,
+		arg.SequenceOrder,
+		arg.ModuleID,
+	)
+	var i Lesson
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.ContentType,
+		&i.AssetUri,
+		&i.RichTextContent,
+		&i.DurationMinutes,
+		&i.SequenceOrder,
+		&i.ModuleID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertLessonProgress = `-- name: UpsertLessonProgress :one
+INSERT INTO lesson_progress (
+    id, is_completed, last_playback_position, completed_at,
+    assignment_id, lesson_id
+) VALUES (
+    ?, ?, ?, ?, ?, ?
+)
+ON CONFLICT(assignment_id, lesson_id) DO UPDATE SET
+    is_completed = excluded.is_completed,
+    completed_at = excluded.completed_at,
+    last_playback_position = excluded.last_playback_position
+RETURNING id, is_completed, last_playback_position, completed_at, assignment_id, lesson_id
+`
+
+type UpsertLessonProgressParams struct {
+	ID                   uuid.UUID    `json:"id"`
+	IsCompleted          bool         `json:"is_completed"`
+	LastPlaybackPosition int64        `json:"last_playback_position"`
+	CompletedAt          sql.NullTime `json:"completed_at"`
+	AssignmentID         uuid.UUID    `json:"assignment_id"`
+	LessonID             uuid.UUID    `json:"lesson_id"`
+}
+
+// LESSON PROGRESS
+func (q *Queries) UpsertLessonProgress(ctx context.Context, arg UpsertLessonProgressParams) (LessonProgress, error) {
+	row := q.db.QueryRowContext(ctx, upsertLessonProgress,
+		arg.ID,
+		arg.IsCompleted,
+		arg.LastPlaybackPosition,
+		arg.CompletedAt,
+		arg.AssignmentID,
+		arg.LessonID,
+	)
+	var i LessonProgress
+	err := row.Scan(
+		&i.ID,
+		&i.IsCompleted,
+		&i.LastPlaybackPosition,
+		&i.CompletedAt,
+		&i.AssignmentID,
+		&i.LessonID,
+	)
+	return i, err
+}
+
+const upsertNomination = `-- name: UpsertNomination :one
+INSERT INTO nominations (
+    id, status, user_id, training_id, nominated_by_id,
+    hr_completion_status, prof_fees, venue_cost, other_cost,
+    non_tems_travel, non_tems_accommodation, total_cost
+) VALUES (
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, ?
+)
+ON CONFLICT(user_id, training_id) DO UPDATE SET
+    status = excluded.status,
+    nominated_by_id = excluded.nominated_by_id,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING id, status, user_id, training_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at
+`
+
+type UpsertNominationParams struct {
+	ID                   uuid.UUID               `json:"id"`
+	Status               models.NominationStatus `json:"status"`
+	UserID               uuid.UUID               `json:"user_id"`
+	TrainingID           uuid.UUID               `json:"training_id"`
+	NominatedByID        uuid.UUID               `json:"nominated_by_id"`
+	HrCompletionStatus   sql.NullString          `json:"hr_completion_status"`
+	ProfFees             sql.NullFloat64         `json:"prof_fees"`
+	VenueCost            sql.NullFloat64         `json:"venue_cost"`
+	OtherCost            sql.NullFloat64         `json:"other_cost"`
+	NonTemsTravel        sql.NullFloat64         `json:"non_tems_travel"`
+	NonTemsAccommodation sql.NullFloat64         `json:"non_tems_accommodation"`
+	TotalCost            sql.NullFloat64         `json:"total_cost"`
+}
+
+func (q *Queries) UpsertNomination(ctx context.Context, arg UpsertNominationParams) (Nomination, error) {
+	row := q.db.QueryRowContext(ctx, upsertNomination,
+		arg.ID,
+		arg.Status,
+		arg.UserID,
+		arg.TrainingID,
+		arg.NominatedByID,
+		arg.HrCompletionStatus,
+		arg.ProfFees,
+		arg.VenueCost,
+		arg.OtherCost,
+		arg.NonTemsTravel,
+		arg.NonTemsAccommodation,
+		arg.TotalCost,
+	)
+	var i Nomination
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.UserID,
+		&i.TrainingID,
+		&i.NominatedByID,
+		&i.HrCompletionStatus,
+		&i.ProfFees,
+		&i.VenueCost,
+		&i.OtherCost,
+		&i.NonTemsTravel,
+		&i.NonTemsAccommodation,
+		&i.TotalCost,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertTraining = `-- name: UpsertTraining :one
+INSERT INTO trainings (
+    id, title, description, category, start_date, end_date,
+    location, virtual_link, pre_read_uri, created_by_id,
+    deadline_days, hr_program_id, mapped_category, mode_of_delivery,
+    instructor_name, institute_partner_name, process_owner_name,
+    process_owner_email, duration_manhours, training_mandays,
+    facility_id
+) VALUES (
+    ?, ?, ?, ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, ?,
+    ?, ?, ?,
+    ?
+)
+ON CONFLICT(title) DO UPDATE SET
+    description = excluded.description,
+    category = excluded.category,
+    start_date = excluded.start_date,
+    end_date = excluded.end_date,
+    location = excluded.location,
+    virtual_link = excluded.virtual_link,
+    pre_read_uri = excluded.pre_read_uri,
+    deadline_days = excluded.deadline_days,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at
+`
+
+type UpsertTrainingParams struct {
+	ID                   uuid.UUID               `json:"id"`
+	Title                string                  `json:"title"`
+	Description          sql.NullString          `json:"description"`
+	Category             models.TrainingCategory `json:"category"`
+	StartDate            time.Time               `json:"start_date"`
+	EndDate              time.Time               `json:"end_date"`
+	Location             sql.NullString          `json:"location"`
+	VirtualLink          sql.NullString          `json:"virtual_link"`
+	PreReadUri           sql.NullString          `json:"pre_read_uri"`
+	CreatedByID          uuid.UUID               `json:"created_by_id"`
+	DeadlineDays         int64                   `json:"deadline_days"`
+	HrProgramID          uuid.UUID               `json:"hr_program_id"`
+	MappedCategory       string                  `json:"mapped_category"`
+	ModeOfDelivery       models.DeliveryMode     `json:"mode_of_delivery"`
+	InstructorName       string                  `json:"instructor_name"`
+	InstitutePartnerName sql.NullString          `json:"institute_partner_name"`
+	ProcessOwnerName     sql.NullString          `json:"process_owner_name"`
+	ProcessOwnerEmail    sql.NullString          `json:"process_owner_email"`
+	DurationManhours     sql.NullFloat64         `json:"duration_manhours"`
+	TrainingMandays      sql.NullFloat64         `json:"training_mandays"`
+	FacilityID           uuid.UUID               `json:"facility_id"`
+}
+
+func (q *Queries) UpsertTraining(ctx context.Context, arg UpsertTrainingParams) (Training, error) {
+	row := q.db.QueryRowContext(ctx, upsertTraining,
+		arg.ID,
+		arg.Title,
+		arg.Description,
+		arg.Category,
+		arg.StartDate,
+		arg.EndDate,
+		arg.Location,
+		arg.VirtualLink,
+		arg.PreReadUri,
+		arg.CreatedByID,
+		arg.DeadlineDays,
+		arg.HrProgramID,
+		arg.MappedCategory,
+		arg.ModeOfDelivery,
+		arg.InstructorName,
+		arg.InstitutePartnerName,
+		arg.ProcessOwnerName,
+		arg.ProcessOwnerEmail,
+		arg.DurationManhours,
+		arg.TrainingMandays,
+		arg.FacilityID,
+	)
+	var i Training
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.Category,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Location,
+		&i.VirtualLink,
+		&i.PreReadUri,
+		&i.CreatedByID,
+		&i.DeadlineDays,
+		&i.HrProgramID,
+		&i.MappedCategory,
+		&i.ModeOfDelivery,
+		&i.InstructorName,
+		&i.InstitutePartnerName,
+		&i.ProcessOwnerName,
+		&i.ProcessOwnerEmail,
+		&i.DurationManhours,
+		&i.TrainingMandays,
+		&i.FacilityID,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertUser = `-- name: UpsertUser :one
+INSERT INTO users (
+    id, pes_number, password, first_name, last_name,
+    email, role, cluster, title, gender, band, grade,
+    ic, sbg, bu, segment, department, base_location,
+    is_id, ns_id, dh_id
+) VALUES (
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?, ?,
+    ?, ?, ?
+)
+ON CONFLICT(pes_number) DO UPDATE SET
+    password = excluded.password,
+    first_name = excluded.first_name,
+    last_name = excluded.last_name,
+    email = excluded.email,
+    role = excluded.role,
+    cluster = excluded.cluster,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
+`
+
+type UpsertUserParams struct {
 	ID           uuid.UUID      `json:"id"`
 	PesNumber    string         `json:"pes_number"`
 	Password     string         `json:"password"`
@@ -698,63 +1341,56 @@ type ListUsersRow struct {
 	DhID         uuid.NullUUID  `json:"dh_id"`
 }
 
-func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
-	rows, err := q.db.QueryContext(ctx, listUsers)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListUsersRow
-	for rows.Next() {
-		var i ListUsersRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.PesNumber,
-			&i.Password,
-			&i.FirstName,
-			&i.LastName,
-			&i.Email,
-			&i.Role,
-			&i.Cluster,
-			&i.Title,
-			&i.Gender,
-			&i.Band,
-			&i.Grade,
-			&i.Ic,
-			&i.Sbg,
-			&i.Bu,
-			&i.Segment,
-			&i.Department,
-			&i.BaseLocation,
-			&i.IsID,
-			&i.NsID,
-			&i.DhID,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const updateUserStatus = `-- name: UpdateUserStatus :exec
-UPDATE users
-SET is_active = ?
-WHERE id = ?
-`
-
-type UpdateUserStatusParams struct {
-	IsActive bool      `json:"is_active"`
-	ID       uuid.UUID `json:"id"`
-}
-
-func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusParams) error {
-	_, err := q.db.ExecContext(ctx, updateUserStatus, arg.IsActive, arg.ID)
-	return err
+func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, upsertUser,
+		arg.ID,
+		arg.PesNumber,
+		arg.Password,
+		arg.FirstName,
+		arg.LastName,
+		arg.Email,
+		arg.Role,
+		arg.Cluster,
+		arg.Title,
+		arg.Gender,
+		arg.Band,
+		arg.Grade,
+		arg.Ic,
+		arg.Sbg,
+		arg.Bu,
+		arg.Segment,
+		arg.Department,
+		arg.BaseLocation,
+		arg.IsID,
+		arg.NsID,
+		arg.DhID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.PesNumber,
+		&i.Password,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.Role,
+		&i.Cluster,
+		&i.Title,
+		&i.Gender,
+		&i.Band,
+		&i.Grade,
+		&i.Ic,
+		&i.Sbg,
+		&i.Bu,
+		&i.Segment,
+		&i.Department,
+		&i.BaseLocation,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.IsID,
+		&i.NsID,
+		&i.DhID,
+	)
+	return i, err
 }
