@@ -19,6 +19,20 @@ func NewHandler(svc Service) *Handler {
 	}
 }
 
+func (h *Handler) HandleMe(w http.ResponseWriter, r *http.Request) {
+	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+		Success: true,
+		Message: "Returing user data from auth token",
+		Data: struct {
+			UserID   any `json:"userId"`
+			UserRole any `json:"userRole"`
+		}{
+			UserID:   r.Context().Value("UserIDKey"),
+			UserRole: r.Context().Value("UserRoleKey"),
+		}, // This is just an example, you would typically query the database for the user's info using the ID from the claims
+	})
+}
+
 func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
