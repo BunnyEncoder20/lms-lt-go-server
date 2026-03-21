@@ -22,8 +22,18 @@ func NewHandler(svc Service) *Handler {
 
 func (h *Handler) HandleMe(w http.ResponseWriter, r *http.Request) {
 	// checking if the values are actually in the context
-	if r.Context().Value(models.UserIDKey) == nil || r.Context().Value(models.UserRoleKey) == nil {
-		log.Println("Context values missing: UserIDKey or UserRoleKey not found in context", r.Context().Value("UserIDKey"), r.Context().Value("UserRoleKey"))
+	userID, err := GetUserID(r.Context())
+	if err != nil {
+		log.Printf("Context values missing: %v\n", err)
+		models.WriteJSON(w, http.StatusNotFound, models.JSONResponse{
+			Success: false,
+			Message: "the token data could not extracted from the context, this should never happen if the middleware is working correctly",
+		})
+		return
+	}
+	userRole, err := GetUserRole(r.Context())
+	if err != nil {
+		log.Printf("Context value missing: %v\n", err)
 		models.WriteJSON(w, http.StatusNotFound, models.JSONResponse{
 			Success: false,
 			Message: "the token data could not extracted from the context, this should never happen if the middleware is working correctly",
@@ -38,8 +48,8 @@ func (h *Handler) HandleMe(w http.ResponseWriter, r *http.Request) {
 			UserID   any `json:"userId"`
 			UserRole any `json:"userRole"`
 		}{
-			UserID:   r.Context().Value(models.UserIDKey),
-			UserRole: r.Context().Value(models.UserRoleKey),
+			UserID:   userID,
+			UserRole: userRole,
 		}, // This is just an example, you would typically query the database for the user's info using the ID from the claims
 	})
 }

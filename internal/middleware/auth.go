@@ -2,7 +2,6 @@
 package middleware
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"os"
@@ -48,8 +47,8 @@ func RequireAuth(next http.Handler) http.Handler {
 		}
 
 		// 3. Put the extracted claims into the request context
-		ctx := context.WithValue(r.Context(), models.UserIDKey, claims.UserID)
-		ctx = context.WithValue(ctx, models.UserRoleKey, claims.Role)
+		ctx := auth.ContextWithUserID(r.Context(), claims.UserID)
+		ctx = auth.ContextWithUserRole(ctx, claims.Role)
 
 		// 4. Create a new request with the updated context and pass it to the next handler
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -64,8 +63,8 @@ func RequireRoles(allowedRoles ...string) func(http.Handler) http.Handler {
 		// this returns the HTTP handler
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// 1. Pull the role safely out of the context
-			// We use the Type Assertion .(string) again because Context values are stored as empty interfaces (any)
-			if userRole, ok := r.Context().Value(models.UserRoleKey).(string); !ok || userRole == "" {
+			userRole, err := auth.GetUserRole(r.Context())
+			if err != nil || userRole == "" {
 				// this acts as a failsafe in case RequireRoles is accidentally used without RequireAuth
 				models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 					Message: "unauthorized: role identity missing",
