@@ -4,7 +4,7 @@ package server
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -18,10 +18,11 @@ import (
 type Server struct {
 	port   int
 	db     database.Service
+	log    *slog.Logger
 	engine *http.Server
 }
 
-func NewServer() *Server {
+func NewServer(logger *slog.Logger) *Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 
 	// this a light wrapper around the std lib's http server
@@ -29,6 +30,7 @@ func NewServer() *Server {
 	myServer := &Server{
 		port: port,
 		db:   database.New(),
+		log:  logger,
 	}
 
 	// Declare Server config
@@ -45,20 +47,23 @@ func NewServer() *Server {
 }
 
 func (s *Server) Start() error {
-	log.Printf("Server starting on port %d", s.port)
+	s.log.Info("Starting server",
+		slog.Int("port", s.port),
+	)
 	return s.engine.ListenAndServe()
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	log.Println("Shutting down HTTP server...")
+	s.log.Info("Shutting down HTTP server...")
 	if err := s.engine.Shutdown(ctx); err != nil {
 		return fmt.Errorf("http shutdown error: %w", err)
 	}
 
-	log.Println("Closing database connections...")
+	s.log.Info("Closing database connections...")
 	if err := s.db.Close(); err != nil {
 		return fmt.Errorf("error while closing db connections: %w", err)
 	}
 
+	s.log.Info("Server shutdown complete")
 	return nil
 }

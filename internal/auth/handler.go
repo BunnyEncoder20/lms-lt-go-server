@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/json"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -12,11 +13,13 @@ import (
 
 type Handler struct {
 	svc Service // references the Service interface from the service.go file of this module
+	log *slog.Logger
 }
 
-func NewHandler(svc Service) *Handler {
+func NewHandler(svc Service, logger *slog.Logger) *Handler {
 	return &Handler{
 		svc: svc,
+		log: logger,
 	}
 }
 

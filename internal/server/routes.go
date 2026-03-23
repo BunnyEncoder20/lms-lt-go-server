@@ -24,11 +24,11 @@ func applyMiddleware(h http.Handler, mws ...Middleware) http.Handler {
 
 func (s *Server) RegisterRoutes() http.Handler {
 	mux := http.NewServeMux()
+	jwtSecret := os.Getenv("JWT_SECRET")
 
 	// Module Init
-	jwtSecret := os.Getenv("JWT_SECRET")
-	authService := auth.NewService(s.db, jwtSecret)
-	authHandler := auth.NewHandler(authService)
+	authService := auth.NewService(s.db, jwtSecret, s.log)
+	authHandler := auth.NewHandler(authService, s.log)
 
 	// Middleware Stacks
 	// grouping middlewares into slices makes applying them to routes incredibly easy and clean.
@@ -57,8 +57,12 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	// Can add more modules routes here
 
-	// Wrap the mux with CORS middleware
-	return s.corsMiddleware(mux)
+	// Wrap the mux with global middlewares
+	globalMiddlewares := []Middleware{
+		s.corsMiddleware,
+		middleware.RequestLogger(s.log),
+	}
+	return applyMiddleware(mux, globalMiddlewares...)
 }
 
 func (s *Server) corsMiddleware(next http.Handler) http.Handler {

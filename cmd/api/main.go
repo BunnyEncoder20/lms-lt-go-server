@@ -3,18 +3,20 @@ package main
 import (
 	"context"
 	"errors"
-	"go-server/internal/server"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"go-server/internal/logger"
+	"go-server/internal/server"
 )
 
 func main() {
 	// Initialize the server
-	srv := server.NewServer()
+	srv := server.NewServer(logger.NewLogger())
 
 	// Create a context that is canceled when a termination signal is received.
 	// This replaces manual signal handling and is the idiomatic way to handle OS signals.
