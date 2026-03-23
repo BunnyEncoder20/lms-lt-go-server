@@ -1,6 +1,6 @@
 # Todo Targets
 
-1. Context Helpers
+✅ Context Helpers
 
 - Currently, you're manually extracting UserID and UserRole from the context with type assertions (e.g., r.Context().Value(models.UserIDKey).(string)).
 - Recommendation: Add helper functions in internal/models/requests.go (or a new context.go) to handle this safely.
