@@ -8,6 +8,7 @@ import (
 	"go-server/internal/auth"
 	"go-server/internal/middleware"
 	"go-server/internal/models"
+	"go-server/internal/users"
 )
 
 // Middleware is a custom type that makes our function signature cleaner
@@ -29,6 +30,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 	// Module Init
 	authService := auth.NewService(s.db, jwtSecret, s.log)
 	authHandler := auth.NewHandler(authService, s.log)
+
+	usersService := users.NewService(s.db, s.log)
+	usersHandler := users.NewHandler(usersService, s.log)
 
 	// Middleware Stacks
 	// grouping middlewares into slices makes applying them to routes incredibly easy and clean.
@@ -52,8 +56,13 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	// --- Protected Routes
 	mux.Handle("GET /me", middleware.RequireAuth(http.HandlerFunc(authHandler.HandleMe)))
-	mux.Handle("GET /admin/user/list", applyMiddleware(http.HandlerFunc(s.HelloWorldHandler), adminOnlyMiddlewares...))
-	mux.Handle("GET /manager/user/list", applyMiddleware(http.HandlerFunc(s.HelloWorldHandler), managerOrAdminMiddlewares...))
+
+	// User Management
+	mux.Handle("GET /my-team", applyMiddleware(http.HandlerFunc(usersHandler.HandleGetMyTeam), managerOrAdminMiddlewares...))
+	mux.Handle("GET /admin/users", applyMiddleware(http.HandlerFunc(usersHandler.HandleListUsers), adminOnlyMiddlewares...))
+	mux.Handle("GET /admin/users/{id}", applyMiddleware(http.HandlerFunc(usersHandler.HandleGetUser), adminOnlyMiddlewares...))
+	mux.Handle("POST /admin/users", applyMiddleware(http.HandlerFunc(usersHandler.HandleCreateUser), adminOnlyMiddlewares...))
+	mux.Handle("PATCH /admin/users/{id}/status", applyMiddleware(http.HandlerFunc(usersHandler.HandleUpdateUserStatus), adminOnlyMiddlewares...))
 
 	// Can add more modules routes here
 

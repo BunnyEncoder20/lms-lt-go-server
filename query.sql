@@ -36,24 +36,43 @@ ON CONFLICT (pes_number) DO UPDATE SET
 RETURNING *;
 
 -- name: GetUserByID :one
-SELECT * FROM users
+SELECT *
+FROM users
 WHERE id = ?;
 
 -- name: GetUserByEmail :one
-SELECT * FROM users
+SELECT *
+FROM users
 WHERE email = ?;
 
 -- name: GetUserByPesNumber :one
-SELECT * FROM users
+SELECT *
+FROM users
 WHERE pes_number = ?;
 
 -- name: ListUsers :many
-SELECT * FROM users
+SELECT *
+FROM users
 ORDER BY first_name, last_name;
+
+-- name: GetTeamMembers :many
+SELECT *
+FROM users
+WHERE is_id = ?;
 
 -- name: UpdateUserStatus :exec
 UPDATE users SET is_active = ?
 WHERE id = ?;
+
+-- name: UpdateUser :one
+UPDATE users SET
+    first_name = COALESCE(sqlc.narg('first_name'), first_name),
+    last_name = COALESCE(sqlc.narg('last_name'), last_name),
+    title = COALESCE(sqlc.narg('title'), title),
+    department = COALESCE(sqlc.narg('department'), department),
+    base_location = COALESCE(sqlc.narg('base_location'), base_location)
+WHERE id = ?
+RETURNING *;
 
 -- TRAININGS
 -- name: CreateTraining :one

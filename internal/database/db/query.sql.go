@@ -470,7 +470,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const getCourseByTitle = `-- name: GetCourseByTitle :one
-SELECT id, title, description, author_id, cover_image_uri, status, category, estimated_durations, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at FROM courses WHERE title = ?
+SELECT id, title, description, author_id, cover_image_uri, status, category, estimated_durations, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at FROM courses
+WHERE title = ?
 `
 
 func (q *Queries) GetCourseByTitle(ctx context.Context, title string) (Course, error) {
@@ -549,8 +550,63 @@ func (q *Queries) GetCourseWithAuthor(ctx context.Context, id uuid.UUID) (GetCou
 	return i, err
 }
 
+const getTeamMembers = `-- name: GetTeamMembers :many
+SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
+FROM users
+WHERE is_id = ?
+`
+
+func (q *Queries) GetTeamMembers(ctx context.Context, isID uuid.NullUUID) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getTeamMembers, isID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.PesNumber,
+			&i.Password,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.Role,
+			&i.Cluster,
+			&i.Title,
+			&i.Gender,
+			&i.Band,
+			&i.Grade,
+			&i.Ic,
+			&i.Sbg,
+			&i.Bu,
+			&i.Segment,
+			&i.Department,
+			&i.BaseLocation,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.IsID,
+			&i.NsID,
+			&i.DhID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTrainingByTitle = `-- name: GetTrainingByTitle :one
-SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings WHERE title = ?
+SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
+WHERE title = ?
 `
 
 func (q *Queries) GetTrainingByTitle(ctx context.Context, title string) (Training, error) {
@@ -586,7 +642,9 @@ func (q *Queries) GetTrainingByTitle(ctx context.Context, title string) (Trainin
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id FROM users WHERE email = ?
+SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
+FROM users
+WHERE email = ?
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -622,7 +680,9 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id FROM users WHERE id = ?
+SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
+FROM users
+WHERE id = ?
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -658,7 +718,9 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 }
 
 const getUserByPesNumber = `-- name: GetUserByPesNumber :one
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id FROM users WHERE pes_number = ?
+SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
+FROM users
+WHERE pes_number = ?
 `
 
 func (q *Queries) GetUserByPesNumber(ctx context.Context, pesNumber string) (User, error) {
@@ -694,7 +756,9 @@ func (q *Queries) GetUserByPesNumber(ctx context.Context, pesNumber string) (Use
 }
 
 const listActiveTrainings = `-- name: ListActiveTrainings :many
-SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings WHERE is_active = 1 ORDER BY start_date ASC
+SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
+WHERE is_active = 1
+ORDER BY start_date ASC
 `
 
 func (q *Queries) ListActiveTrainings(ctx context.Context) ([]Training, error) {
@@ -787,7 +851,9 @@ func (q *Queries) ListLessonsByCourse(ctx context.Context, courseID uuid.UUID) (
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id FROM users ORDER BY first_name, last_name
+SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
+FROM users
+ORDER BY first_name, last_name
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
@@ -838,8 +904,68 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
+const updateUser = `-- name: UpdateUser :one
+UPDATE users SET
+    first_name = COALESCE(?2, first_name),
+    last_name = COALESCE(?3, last_name),
+    title = COALESCE(?4, title),
+    department = COALESCE(?5, department),
+    base_location = COALESCE(?6, base_location)
+WHERE id = ?
+RETURNING id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
+`
+
+type UpdateUserParams struct {
+	FirstName    sql.NullString `json:"first_name"`
+	LastName     sql.NullString `json:"last_name"`
+	Title        sql.NullString `json:"title"`
+	Department   sql.NullString `json:"department"`
+	BaseLocation sql.NullString `json:"base_location"`
+	ID           uuid.UUID      `json:"id"`
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUser,
+		arg.FirstName,
+		arg.LastName,
+		arg.Title,
+		arg.Department,
+		arg.BaseLocation,
+		arg.ID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.PesNumber,
+		&i.Password,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.Role,
+		&i.Cluster,
+		&i.Title,
+		&i.Gender,
+		&i.Band,
+		&i.Grade,
+		&i.Ic,
+		&i.Sbg,
+		&i.Bu,
+		&i.Segment,
+		&i.Department,
+		&i.BaseLocation,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.IsID,
+		&i.NsID,
+		&i.DhID,
+	)
+	return i, err
+}
+
 const updateUserStatus = `-- name: UpdateUserStatus :exec
-UPDATE users SET is_active = ? WHERE id = ?
+UPDATE users SET is_active = ?
+WHERE id = ?
 `
 
 type UpdateUserStatusParams struct {
@@ -860,7 +986,7 @@ INSERT INTO courses (
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-ON CONFLICT(title) DO UPDATE SET
+ON CONFLICT (title) DO UPDATE SET
     description = excluded.description,
     author_id = excluded.author_id,
     status = excluded.status,
@@ -931,7 +1057,7 @@ INSERT INTO course_assignments (
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?, ?
 )
-ON CONFLICT(user_id, course_id) DO UPDATE SET
+ON CONFLICT (user_id, course_id) DO UPDATE SET
     status = excluded.status,
     progress_percentage = excluded.progress_percentage,
     course_version = excluded.course_version,
@@ -984,7 +1110,7 @@ INSERT INTO course_modules (
 ) VALUES (
     ?, ?, ?, ?, ?
 )
-ON CONFLICT(course_id, title) DO UPDATE SET
+ON CONFLICT (course_id, title) DO UPDATE SET
     description = excluded.description,
     sequence_order = excluded.sequence_order,
     updated_at = CURRENT_TIMESTAMP
@@ -1027,7 +1153,7 @@ INSERT INTO lessons (
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?, ?
 )
-ON CONFLICT(module_id, title) DO UPDATE SET
+ON CONFLICT (module_id, title) DO UPDATE SET
     content_type = excluded.content_type,
     asset_uri = excluded.asset_uri,
     rich_text_content = excluded.rich_text_content,
@@ -1082,7 +1208,7 @@ INSERT INTO lesson_progress (
 ) VALUES (
     ?, ?, ?, ?, ?, ?
 )
-ON CONFLICT(assignment_id, lesson_id) DO UPDATE SET
+ON CONFLICT (assignment_id, lesson_id) DO UPDATE SET
     is_completed = excluded.is_completed,
     completed_at = excluded.completed_at,
     last_playback_position = excluded.last_playback_position
@@ -1130,7 +1256,7 @@ INSERT INTO nominations (
     ?, ?, ?, ?,
     ?, ?, ?
 )
-ON CONFLICT(user_id, training_id) DO UPDATE SET
+ON CONFLICT (user_id, training_id) DO UPDATE SET
     status = excluded.status,
     nominated_by_id = excluded.nominated_by_id,
     updated_at = CURRENT_TIMESTAMP
@@ -1203,7 +1329,7 @@ INSERT INTO trainings (
     ?, ?, ?,
     ?
 )
-ON CONFLICT(title) DO UPDATE SET
+ON CONFLICT (title) DO UPDATE SET
     description = excluded.description,
     category = excluded.category,
     start_date = excluded.start_date,
@@ -1306,7 +1432,7 @@ INSERT INTO users (
     ?, ?, ?, ?, ?, ?,
     ?, ?, ?
 )
-ON CONFLICT(pes_number) DO UPDATE SET
+ON CONFLICT (pes_number) DO UPDATE SET
     password = excluded.password,
     first_name = excluded.first_name,
     last_name = excluded.last_name,

@@ -23,3 +23,26 @@ func WriteJSON(w http.ResponseWriter, status int, data any) {
 		log.Printf("error encoding json: %v", err)
 	}
 }
+
+type UserResponse struct {
+	ID           string  `json:"id"`
+	PesNumber    string  `json:"pes_number"`
+	FirstName    string  `json:"first_name"`
+	LastName     string  `json:"last_name"`
+	Email        string  `json:"email"`
+	Role         Role    `json:"role"`
+	Cluster      *string `json:"cluster,omitempty"`
+	Title        string  `json:"title"`
+	Gender       string  `json:"gender"`
+	Band         string  `json:"band"`
+	Grade        string  `json:"grade"`
+	Ic           string  `json:"ic"`
+	Sbg          string  `json:"sbg"`
+	Bu           string  `json:"bu"`
+	Segment      string  `json:"segment"`
+	Department   string  `json:"department"`
+	BaseLocation string  `json:"base_location"`
+	IsID         *string `json:"is_id,omitempty"`
+	NsID         *string `json:"ns_id,omitempty"`
+	DhID         *string `json:"dh_id,omitempty"`
+}

@@ -12,7 +12,7 @@ return id, ok
 }
 ```
 
-1. Structured Logging (slog)
+✅ Structured Logging (slog)
 
 - You're currently using the standard log package. Since Go 1.21, log/slog is the standard for structured logging.
 - Recommendation: Initialize a global or injected slog.Logger. This will allow you to log with context (e.g., logger.Info("user logged in", "user_id", id)) which is invaluable for debugging production systems.
