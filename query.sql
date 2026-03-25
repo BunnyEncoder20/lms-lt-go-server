@@ -64,6 +64,10 @@ WHERE is_id = ?;
 UPDATE users SET is_active = ?
 WHERE id = ?;
 
+-- name: DeleteUser :exec
+DELETE FROM users
+WHERE id = ?;
+
 -- name: UpdateUser :one
 UPDATE users SET
     first_name = COALESCE(sqlc.narg('first_name'), first_name),

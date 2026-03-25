@@ -133,8 +133,20 @@ func (h *Handler) HandleUpdateUserStatus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err := h.svc.UpdateStatus(r.Context(), id, req.IsActive)
-	if err != nil {
+	// Prevent admin from deactivating themselves
+	if !req.IsActive {
+		adminID, _ := auth.GetUserID(r.Context())
+		if adminID == id {
+			h.log.Warn("admin attempted to deactivate their own account via status update", "adminID", adminID)
+			models.WriteJSON(w, http.StatusForbidden, models.JSONResponse{
+				Success: false,
+				Message: "you cannot deactivate your own admin account",
+			})
+			return
+		}
+	}
+
+	if err := h.svc.DeactivateUser(r.Context(), id, req.IsActive); err != nil {
 		h.log.Error("failed to update user status", "id", id, "error", err)
 		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
@@ -188,5 +200,97 @@ func (h *Handler) HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "profile updated successfully",
 		Data:    updatedProfile,
+	})
+}
+
+func (h *Handler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
+	// 1. Fetch the user id from the auth of admin making the req
+	adminID, err := auth.GetUserID(r.Context())
+	if err != nil {
+		// Even though middleware checked auth, the context extraction could theoretically fail, so we handle that case here
+		h.log.Error("failed to extract admin ID from context", "error", err)
+		models.WriteJSON(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	// 2. grab the ID the target user to be deleted from the url path
+	targetUserID := r.PathValue("id")
+	if targetUserID == "" {
+		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+			Message: "internal server error",
+		})
+		return
+	}
+
+	// 3. Ensure admin doesn't delete themselves
+	if adminID == targetUserID {
+		h.log.Warn("admin attempted to delete their own account", "adminID", adminID)
+		models.WriteJSON(w, http.StatusForbidden, models.JSONResponse{
+			Success: false,
+			Message: "you cannot delete your own admin account",
+		})
+		return
+	}
+
+	// 4. Hand off to service layer
+	if err := h.svc.PermanentlyDeleteUser(r.Context(), targetUserID); err != nil {
+		h.log.Error("failed to delete user",
+			slog.String("adminID", adminID),
+			slog.String("targetUserID", targetUserID),
+			slog.Any("error", err),
+		)
+		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+			Message: "failed to delete the user",
+		})
+		return
+	}
+
+	// 5. Audit log - cruicial for prod logs
+	h.log.Info("user deleted successfully",
+		slog.String("action_by_admin", adminID),
+		slog.String("deleted_user", targetUserID),
+	)
+
+	// 6. Returning success response
+	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+		Success: true,
+		Message: "user permanently deleted successfully",
+	})
+}
+
+// HandleSoftDeleteUser deactivates a user account (is_active = false)
+func (h *Handler) HandleSoftDeleteUser(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+			Success: false,
+			Message: "missing user id",
+		})
+		return
+	}
+
+	// Prevent admin from deactivating themselves
+	adminID, _ := auth.GetUserID(r.Context())
+	if adminID == id {
+		h.log.Warn("admin attempted to soft-delete their own account", "adminID", adminID)
+		models.WriteJSON(w, http.StatusForbidden, models.JSONResponse{
+			Success: false,
+			Message: "you cannot deactivate your own admin account",
+		})
+		return
+	}
+
+	if err := h.svc.DeactivateUser(r.Context(), id, false); err != nil {
+		h.log.Error("failed to soft delete user", "id", id, "error", err)
+		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+			Success: false,
+			Message: "failed to deactivate user",
+		})
+		return
+	}
+
+	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+		Success: true,
+		Message: "user deactivated successfully",
 	})
 }

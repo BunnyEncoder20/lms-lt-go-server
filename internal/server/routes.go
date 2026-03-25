@@ -63,6 +63,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.Handle("GET /admin/users/{id}", applyMiddleware(http.HandlerFunc(usersHandler.HandleGetUser), adminOnlyMiddlewares...))
 	mux.Handle("POST /admin/users", applyMiddleware(http.HandlerFunc(usersHandler.HandleCreateUser), adminOnlyMiddlewares...))
 	mux.Handle("PATCH /admin/users/{id}/status", applyMiddleware(http.HandlerFunc(usersHandler.HandleUpdateUserStatus), adminOnlyMiddlewares...))
+	mux.Handle("DELETE /admin/users/{id}", applyMiddleware(http.HandlerFunc(usersHandler.HandleSoftDeleteUser), adminOnlyMiddlewares...))
+	mux.Handle("DELETE /admin/users/permanent/{id}", applyMiddleware(http.HandlerFunc(usersHandler.HandleDeleteUser), adminOnlyMiddlewares...))
 
 	// Can add more modules routes here
 

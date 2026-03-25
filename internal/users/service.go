@@ -21,8 +21,8 @@ type Service interface {
 	GetMyTeam(ctx context.Context, managerID string) ([]models.UserResponse, error)
 	Create(ctx context.Context, userData models.CreateUserRequest) (models.UserResponse, error)
 	Update(ctx context.Context, userID string, userData models.UpdateUserRequest) (models.UserResponse, error)
-	UpdateStatus(ctx context.Context, userID string, isActive bool) error
-	Delete(ctx context.Context, userID string) (models.UserResponse, error)
+	DeactivateUser(ctx context.Context, userID string, isActive bool) error
+	PermanentlyDeleteUser(ctx context.Context, userID string) error
 }
 
 type service struct {
@@ -152,7 +152,7 @@ func (s *service) GetMyTeam(ctx context.Context, managerID string) ([]models.Use
 	return responses, nil
 }
 
-func (s *service) UpdateStatus(ctx context.Context, userID string, isActive bool) error {
+func (s *service) DeactivateUser(ctx context.Context, userID string, isActive bool) error {
 	parsedID, err := uuid.Parse(userID)
 	if err != nil {
 		return err
@@ -190,9 +190,14 @@ func (s *service) Update(ctx context.Context, userID string, userData models.Upd
 	return results, nil
 }
 
-func (s *service) Delete(ctx context.Context, userID string) (models.UserResponse, error) {
-	// WARN: Not Implemented
-	return models.UserResponse{}, errors.New("not implemented")
+func (s *service) PermanentlyDeleteUser(ctx context.Context, userID string) error {
+	parsedID, err := uuid.Parse(userID)
+	if err != nil {
+		return errors.New("error deleting user from database")
+	}
+
+	// Permanently delete the user record from the database
+	return s.db.Write().DeleteUser(ctx, parsedID)
 }
 
 // MapUserToResponse converts db.User to models.UserResponse
