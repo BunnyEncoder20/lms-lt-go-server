@@ -26,14 +26,12 @@ type Service interface {
 }
 
 type service struct {
-	db  database.Service
-	log *slog.Logger
+	db database.Service
 }
 
 func NewService(db database.Service, logger *slog.Logger) Service {
 	return &service{
-		db:  db,
-		log: logger,
+		db: db,
 	}
 }
 
@@ -53,20 +51,14 @@ func (s *service) FindAll(ctx context.Context) ([]models.UserResponse, error) {
 func (s *service) FindOne(ctx context.Context, userID string) (models.UserResponse, error) {
 	parsedID, err := uuid.Parse(userID)
 	if err != nil {
-		s.log.Error("error while parsing userID", slog.String("userID", userID), slog.Any("error", err))
 		return models.UserResponse{}, err
 	}
 
 	user, err := s.db.Read().GetUserByID(ctx, parsedID)
 	if err != nil {
-		s.log.Error("user could not be found",
-			slog.String("userID", userID),
-			slog.Any("error", err),
-		)
 		return models.UserResponse{}, err
 	}
 
-	s.log.Info("user found", slog.String("userID", userID), slog.String("userName", user.FirstName+user.LastName))
 	return MapUserToResponse(user), nil
 }
 
