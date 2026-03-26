@@ -469,6 +469,16 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const deleteTraining = `-- name: DeleteTraining :exec
+DELETE FROM trainings
+WHERE id = ?
+`
+
+func (q *Queries) DeleteTraining(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteTraining, id)
+	return err
+}
+
 const deleteUser = `-- name: DeleteUser :exec
 DELETE FROM users
 WHERE id = ?
@@ -560,6 +570,94 @@ func (q *Queries) GetCourseWithAuthor(ctx context.Context, id uuid.UUID) (GetCou
 	return i, err
 }
 
+const getNominationsByTrainingID = `-- name: GetNominationsByTrainingID :many
+SELECT id, status, user_id, training_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at FROM nominations
+WHERE training_id = ?
+`
+
+func (q *Queries) GetNominationsByTrainingID(ctx context.Context, trainingID uuid.UUID) ([]Nomination, error) {
+	rows, err := q.db.QueryContext(ctx, getNominationsByTrainingID, trainingID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Nomination
+	for rows.Next() {
+		var i Nomination
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.UserID,
+			&i.TrainingID,
+			&i.NominatedByID,
+			&i.HrCompletionStatus,
+			&i.ProfFees,
+			&i.VenueCost,
+			&i.OtherCost,
+			&i.NonTemsTravel,
+			&i.NonTemsAccommodation,
+			&i.TotalCost,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getNominationsByUserID = `-- name: GetNominationsByUserID :many
+SELECT n.id, n.status, n.user_id, n.training_id, n.nominated_by_id, n.hr_completion_status, n.prof_fees, n.venue_cost, n.other_cost, n.non_tems_travel, n.non_tems_accommodation, n.total_cost, n.created_at, n.updated_at FROM nominations n
+JOIN trainings t ON n.training_id = t.id
+WHERE n.user_id = ?
+ORDER BY t.start_date ASC
+`
+
+func (q *Queries) GetNominationsByUserID(ctx context.Context, userID uuid.UUID) ([]Nomination, error) {
+	rows, err := q.db.QueryContext(ctx, getNominationsByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Nomination
+	for rows.Next() {
+		var i Nomination
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.UserID,
+			&i.TrainingID,
+			&i.NominatedByID,
+			&i.HrCompletionStatus,
+			&i.ProfFees,
+			&i.VenueCost,
+			&i.OtherCost,
+			&i.NonTemsTravel,
+			&i.NonTemsAccommodation,
+			&i.TotalCost,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTeamMembers = `-- name: GetTeamMembers :many
 SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
 FROM users
@@ -612,6 +710,43 @@ func (q *Queries) GetTeamMembers(ctx context.Context, isID uuid.NullUUID) ([]Use
 		return nil, err
 	}
 	return items, nil
+}
+
+const getTrainingByID = `-- name: GetTrainingByID :one
+SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
+WHERE id = ?
+`
+
+func (q *Queries) GetTrainingByID(ctx context.Context, id uuid.UUID) (Training, error) {
+	row := q.db.QueryRowContext(ctx, getTrainingByID, id)
+	var i Training
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.Category,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Location,
+		&i.VirtualLink,
+		&i.PreReadUri,
+		&i.CreatedByID,
+		&i.DeadlineDays,
+		&i.HrProgramID,
+		&i.MappedCategory,
+		&i.ModeOfDelivery,
+		&i.InstructorName,
+		&i.InstitutePartnerName,
+		&i.ProcessOwnerName,
+		&i.ProcessOwnerEmail,
+		&i.DurationManhours,
+		&i.TrainingMandays,
+		&i.FacilityID,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getTrainingByTitle = `-- name: GetTrainingByTitle :one
@@ -860,6 +995,167 @@ func (q *Queries) ListLessonsByCourse(ctx context.Context, courseID uuid.UUID) (
 	return items, nil
 }
 
+const listTrainings = `-- name: ListTrainings :many
+SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
+ORDER BY start_date ASC
+`
+
+func (q *Queries) ListTrainings(ctx context.Context) ([]Training, error) {
+	rows, err := q.db.QueryContext(ctx, listTrainings)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Training
+	for rows.Next() {
+		var i Training
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Category,
+			&i.StartDate,
+			&i.EndDate,
+			&i.Location,
+			&i.VirtualLink,
+			&i.PreReadUri,
+			&i.CreatedByID,
+			&i.DeadlineDays,
+			&i.HrProgramID,
+			&i.MappedCategory,
+			&i.ModeOfDelivery,
+			&i.InstructorName,
+			&i.InstitutePartnerName,
+			&i.ProcessOwnerName,
+			&i.ProcessOwnerEmail,
+			&i.DurationManhours,
+			&i.TrainingMandays,
+			&i.FacilityID,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTrainingsByCategory = `-- name: ListTrainingsByCategory :many
+SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
+WHERE category = ? AND is_active = 1
+ORDER BY start_date ASC
+`
+
+func (q *Queries) ListTrainingsByCategory(ctx context.Context, category models.TrainingCategory) ([]Training, error) {
+	rows, err := q.db.QueryContext(ctx, listTrainingsByCategory, category)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Training
+	for rows.Next() {
+		var i Training
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Category,
+			&i.StartDate,
+			&i.EndDate,
+			&i.Location,
+			&i.VirtualLink,
+			&i.PreReadUri,
+			&i.CreatedByID,
+			&i.DeadlineDays,
+			&i.HrProgramID,
+			&i.MappedCategory,
+			&i.ModeOfDelivery,
+			&i.InstructorName,
+			&i.InstitutePartnerName,
+			&i.ProcessOwnerName,
+			&i.ProcessOwnerEmail,
+			&i.DurationManhours,
+			&i.TrainingMandays,
+			&i.FacilityID,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUpcomingTrainings = `-- name: ListUpcomingTrainings :many
+SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
+WHERE start_date > CURRENT_TIMESTAMP AND is_active = 1
+ORDER BY start_date ASC
+`
+
+func (q *Queries) ListUpcomingTrainings(ctx context.Context) ([]Training, error) {
+	rows, err := q.db.QueryContext(ctx, listUpcomingTrainings)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Training
+	for rows.Next() {
+		var i Training
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Category,
+			&i.StartDate,
+			&i.EndDate,
+			&i.Location,
+			&i.VirtualLink,
+			&i.PreReadUri,
+			&i.CreatedByID,
+			&i.DeadlineDays,
+			&i.HrProgramID,
+			&i.MappedCategory,
+			&i.ModeOfDelivery,
+			&i.InstructorName,
+			&i.InstitutePartnerName,
+			&i.ProcessOwnerName,
+			&i.ProcessOwnerEmail,
+			&i.DurationManhours,
+			&i.TrainingMandays,
+			&i.FacilityID,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUsers = `-- name: ListUsers :many
 SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
 FROM users
@@ -912,6 +1208,105 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateTraining = `-- name: UpdateTraining :one
+UPDATE trainings SET
+    title = COALESCE(?2, title),
+    description = COALESCE(?3, description),
+    category = COALESCE(?4, category),
+    start_date = COALESCE(?5, start_date),
+    end_date = COALESCE(?6, end_date),
+    location = COALESCE(?7, location),
+    virtual_link = COALESCE(?8, virtual_link),
+    pre_read_uri = COALESCE(?9, pre_read_uri),
+    deadline_days = COALESCE(?10, deadline_days),
+    mapped_category = COALESCE(?11, mapped_category),
+    mode_of_delivery = COALESCE(?12, mode_of_delivery),
+    instructor_name = COALESCE(?13, instructor_name),
+    institute_partner_name = COALESCE(?14, institute_partner_name),
+    process_owner_name = COALESCE(?15, process_owner_name),
+    process_owner_email = COALESCE(?16, process_owner_email),
+    duration_manhours = COALESCE(?17, duration_manhours),
+    training_mandays = COALESCE(?18, training_mandays),
+    is_active = COALESCE(?19, is_active),
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at
+`
+
+type UpdateTrainingParams struct {
+	Title                sql.NullString          `json:"title"`
+	Description          sql.NullString          `json:"description"`
+	Category             models.TrainingCategory `json:"category"`
+	StartDate            sql.NullTime            `json:"start_date"`
+	EndDate              sql.NullTime            `json:"end_date"`
+	Location             sql.NullString          `json:"location"`
+	VirtualLink          sql.NullString          `json:"virtual_link"`
+	PreReadUri           sql.NullString          `json:"pre_read_uri"`
+	DeadlineDays         sql.NullInt64           `json:"deadline_days"`
+	MappedCategory       sql.NullString          `json:"mapped_category"`
+	ModeOfDelivery       models.DeliveryMode     `json:"mode_of_delivery"`
+	InstructorName       sql.NullString          `json:"instructor_name"`
+	InstitutePartnerName sql.NullString          `json:"institute_partner_name"`
+	ProcessOwnerName     sql.NullString          `json:"process_owner_name"`
+	ProcessOwnerEmail    sql.NullString          `json:"process_owner_email"`
+	DurationManhours     sql.NullFloat64         `json:"duration_manhours"`
+	TrainingMandays      sql.NullFloat64         `json:"training_mandays"`
+	IsActive             sql.NullBool            `json:"is_active"`
+	ID                   uuid.UUID               `json:"id"`
+}
+
+func (q *Queries) UpdateTraining(ctx context.Context, arg UpdateTrainingParams) (Training, error) {
+	row := q.db.QueryRowContext(ctx, updateTraining,
+		arg.Title,
+		arg.Description,
+		arg.Category,
+		arg.StartDate,
+		arg.EndDate,
+		arg.Location,
+		arg.VirtualLink,
+		arg.PreReadUri,
+		arg.DeadlineDays,
+		arg.MappedCategory,
+		arg.ModeOfDelivery,
+		arg.InstructorName,
+		arg.InstitutePartnerName,
+		arg.ProcessOwnerName,
+		arg.ProcessOwnerEmail,
+		arg.DurationManhours,
+		arg.TrainingMandays,
+		arg.IsActive,
+		arg.ID,
+	)
+	var i Training
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.Category,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Location,
+		&i.VirtualLink,
+		&i.PreReadUri,
+		&i.CreatedByID,
+		&i.DeadlineDays,
+		&i.HrProgramID,
+		&i.MappedCategory,
+		&i.ModeOfDelivery,
+		&i.InstructorName,
+		&i.InstitutePartnerName,
+		&i.ProcessOwnerName,
+		&i.ProcessOwnerEmail,
+		&i.DurationManhours,
+		&i.TrainingMandays,
+		&i.FacilityID,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const updateUser = `-- name: UpdateUser :one

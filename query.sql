@@ -134,6 +134,52 @@ SELECT * FROM trainings
 WHERE is_active = 1
 ORDER BY start_date ASC;
 
+-- name: GetTrainingByID :one
+SELECT * FROM trainings
+WHERE id = ?;
+
+-- name: ListTrainings :many
+SELECT * FROM trainings
+ORDER BY start_date ASC;
+
+-- name: ListTrainingsByCategory :many
+SELECT * FROM trainings
+WHERE category = ? AND is_active = 1
+ORDER BY start_date ASC;
+
+-- name: ListUpcomingTrainings :many
+SELECT * FROM trainings
+WHERE start_date > CURRENT_TIMESTAMP AND is_active = 1
+ORDER BY start_date ASC;
+
+-- name: UpdateTraining :one
+UPDATE trainings SET
+    title = COALESCE(sqlc.narg('title'), title),
+    description = COALESCE(sqlc.narg('description'), description),
+    category = COALESCE(sqlc.narg('category'), category),
+    start_date = COALESCE(sqlc.narg('start_date'), start_date),
+    end_date = COALESCE(sqlc.narg('end_date'), end_date),
+    location = COALESCE(sqlc.narg('location'), location),
+    virtual_link = COALESCE(sqlc.narg('virtual_link'), virtual_link),
+    pre_read_uri = COALESCE(sqlc.narg('pre_read_uri'), pre_read_uri),
+    deadline_days = COALESCE(sqlc.narg('deadline_days'), deadline_days),
+    mapped_category = COALESCE(sqlc.narg('mapped_category'), mapped_category),
+    mode_of_delivery = COALESCE(sqlc.narg('mode_of_delivery'), mode_of_delivery),
+    instructor_name = COALESCE(sqlc.narg('instructor_name'), instructor_name),
+    institute_partner_name = COALESCE(sqlc.narg('institute_partner_name'), institute_partner_name),
+    process_owner_name = COALESCE(sqlc.narg('process_owner_name'), process_owner_name),
+    process_owner_email = COALESCE(sqlc.narg('process_owner_email'), process_owner_email),
+    duration_manhours = COALESCE(sqlc.narg('duration_manhours'), duration_manhours),
+    training_mandays = COALESCE(sqlc.narg('training_mandays'), training_mandays),
+    is_active = COALESCE(sqlc.narg('is_active'), is_active),
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING *;
+
+-- name: DeleteTraining :exec
+DELETE FROM trainings
+WHERE id = ?;
+
 -- NOMINATIONS
 -- name: CreateNomination :one
 INSERT INTO nominations (
@@ -146,6 +192,16 @@ INSERT INTO nominations (
     ?, ?, ?
 )
 RETURNING *;
+
+-- name: GetNominationsByUserID :many
+SELECT n.* FROM nominations n
+JOIN trainings t ON n.training_id = t.id
+WHERE n.user_id = ?
+ORDER BY t.start_date ASC;
+
+-- name: GetNominationsByTrainingID :many
+SELECT * FROM nominations
+WHERE training_id = ?;
 
 -- name: UpsertNomination :one
 INSERT INTO nominations (
