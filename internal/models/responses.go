@@ -46,3 +46,47 @@ type UserResponse struct {
 	NsID         *string `json:"ns_id,omitempty"`
 	DhID         *string `json:"dh_id,omitempty"`
 }
+
+type TrainingResponse struct {
+	ID                   string           `json:"id"`
+	Title                string           `json:"title"`
+	Description          *string          `json:"description,omitempty"`
+	Category             TrainingCategory `json:"category"`
+	StartDate            string           `json:"start_date"`
+	EndDate              string           `json:"end_date"`
+	Location             *string          `json:"location,omitempty"`
+	VirtualLink          *string          `json:"virtual_link,omitempty"`
+	PreReadUri           *string          `json:"pre_read_uri,omitempty"`
+	CreatedByID          string           `json:"created_by_id"`
+	DeadlineDays         int64            `json:"deadline_days"`
+	HrProgramID          string           `json:"hr_program_id"`
+	MappedCategory       string           `json:"mapped_category"`
+	ModeOfDelivery       DeliveryMode     `json:"mode_of_delivery"`
+	InstructorName       string           `json:"instructor_name"`
+	InstitutePartnerName *string          `json:"institute_partner_name,omitempty"`
+	ProcessOwnerName     *string          `json:"process_owner_name,omitempty"`
+	ProcessOwnerEmail    *string          `json:"process_owner_email,omitempty"`
+	DurationManhours     *float64         `json:"duration_manhours,omitempty"`
+	TrainingMandays      *float64         `json:"training_mandays,omitempty"`
+	FacilityID           string           `json:"facility_id"`
+	IsActive             bool             `json:"is_active"`
+	CreatedAt            string           `json:"created_at"`
+	UpdatedAt            string           `json:"updated_at"`
+}
+
+type NominationResponse struct {
+	ID                   string           `json:"id"`
+	Status               NominationStatus `json:"status"`
+	UserID               string           `json:"user_id"`
+	TrainingID           string           `json:"training_id"`
+	NominatedByID        string           `json:"nominated_by_id"`
+	HrCompletionStatus   *string          `json:"hr_completion_status,omitempty"`
+	ProfFees             *float64         `json:"prof_fees,omitempty"`
+	VenueCost            *float64         `json:"venue_cost,omitempty"`
+	OtherCost            *float64         `json:"other_cost,omitempty"`
+	NonTemsTravel        *float64         `json:"non_tems_travel,omitempty"`
+	NonTemsAccommodation *float64         `json:"non_tems_accommodation,omitempty"`
+	TotalCost            *float64         `json:"total_cost,omitempty"`
+	CreatedAt            string           `json:"created_at"`
+	UpdatedAt            string           `json:"updated_at"`
+}

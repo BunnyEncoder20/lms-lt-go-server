@@ -56,3 +56,48 @@ type UserStatusRequest struct {
 type UserID struct {
 	ID uuid.UUID
 }
+
+// Training Requests
+
+type CreateTrainingRequest struct {
+	Title                string   `json:"title"`
+	Description          *string  `json:"description,omitempty"`
+	Category             string   `json:"category"`
+	StartDate            string   `json:"start_date"`
+	EndDate              string   `json:"end_date"`
+	Location             *string  `json:"location,omitempty"`
+	VirtualLink          *string  `json:"virtual_link,omitempty"`
+	PreReadURI           *string  `json:"pre_read_uri,omitempty"`
+	DeadlineDays         int64    `json:"deadline_days"`
+	HrProgramID          string   `json:"hr_program_id"`
+	MappedCategory       string   `json:"mapped_category"`
+	ModeOfDelivery       string   `json:"mode_of_delivery"`
+	InstructorName       string   `json:"instructor_name"`
+	InstitutePartnerName *string  `json:"institute_partner_name,omitempty"`
+	ProcessOwnerName     *string  `json:"process_owner_name,omitempty"`
+	ProcessOwnerEmail    *string  `json:"process_owner_email,omitempty"`
+	DurationManhours     *float64 `json:"duration_manhours,omitempty"`
+	TrainingMandays      *float64 `json:"training_mandays,omitempty"`
+	FacilityID           string   `json:"facility_id"`
+}
+
+type UpdateTrainingRequest struct {
+	Title                *string  `json:"title,omitempty"`
+	Description          *string  `json:"description,omitempty"`
+	Category             *string  `json:"category,omitempty"`
+	StartDate            *string  `json:"start_date,omitempty"`
+	EndDate              *string  `json:"end_date,omitempty"`
+	Location             *string  `json:"location,omitempty"`
+	VirtualLink          *string  `json:"virtual_link,omitempty"`
+	PreReadURI           *string  `json:"pre_read_uri,omitempty"`
+	DeadlineDays         *int64   `json:"deadline_days,omitempty"`
+	MappedCategory       *string  `json:"mapped_category,omitempty"`
+	ModeOfDelivery       *string  `json:"mode_of_delivery,omitempty"`
+	InstructorName       *string  `json:"instructor_name,omitempty"`
+	InstitutePartnerName *string  `json:"institute_partner_name,omitempty"`
+	ProcessOwnerName     *string  `json:"process_owner_name,omitempty"`
+	ProcessOwnerEmail    *string  `json:"process_owner_email,omitempty"`
+	DurationManhours     *float64 `json:"duration_manhours,omitempty"`
+	TrainingMandays      *float64 `json:"training_mandays,omitempty"`
+	IsActive             *bool    `json:"is_active,omitempty"`
+}
