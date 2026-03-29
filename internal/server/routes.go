@@ -8,6 +8,7 @@ import (
 	"go-server/internal/auth"
 	"go-server/internal/middleware"
 	"go-server/internal/models"
+	"go-server/internal/trainings"
 	"go-server/internal/users"
 )
 
@@ -33,6 +34,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	usersService := users.NewService(s.db, s.log)
 	usersHandler := users.NewHandler(usersService, s.log)
+
+	trainingsService := trainings.NewService(s.db)
+	trainingsHandler := trainings.NewHandler(trainingsService, s.log)
 
 	// Middleware Stacks
 	// grouping middlewares into slices makes applying them to routes incredibly easy and clean.
@@ -66,12 +70,20 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.Handle("DELETE /admin/users/{id}", applyMiddleware(http.HandlerFunc(usersHandler.HandleSoftDeleteUser), adminOnlyMiddlewares...))
 	mux.Handle("DELETE /admin/users/permanent/{id}", applyMiddleware(http.HandlerFunc(usersHandler.HandleDeleteUser), adminOnlyMiddlewares...))
 
-	// Can add more modules routes here
-
-	// Wrap the mux with global middlewares
+	// Training Management
+	// Public/Employee routes (accessible to authenticated users)
+	mux.Handle("GET /trainings", middleware.RequireAuth(http.HandlerFunc(trainingsHandler.HandleListTraining)))
+	mux.Handle("GET /trainings/{id}", middleware.RequireAuth(http.HandlerFunc(trainingsHandler.HandleGetTraining)))
+	mux.Handle("GET /trainings/category/{category}", middleware.RequireAuth(http.HandlerFunc(trainingsHandler.HandleGetTrainingCategory)))
+	mux.Handle("GET /trainings/upcoming", middleware.RequireAuth(http.HandlerFunc(trainingsHandler.HandleGetUpcomingTraining)))
+	mux.Handle("GET /my-trainings", middleware.RequireAuth(http.HandlerFunc(trainingsHandler.HandleGetEmployeeTraining)))
+	// Admin only routes
+	mux.Handle("POST /admin/trainings", applyMiddleware(http.HandlerFunc(trainingsHandler.HandleCreateTraining), adminOnlyMiddlewares...))
+	mux.Handle("PATCH /admin/trainings/{id}", applyMiddleware(http.HandlerFunc(trainingsHandler.HandleUpdateTraining), adminOnlyMiddlewares...))
+	mux.Handle("DELETE /admin/trainings/{id}", applyMiddleware(http.HandlerFunc(trainingsHandler.HandleDeleteTraining), adminOnlyMiddlewares...))
 	globalMiddlewares := []Middleware{
-		s.corsMiddleware,
-		middleware.RequestLogger(s.log),
+		s.corsMiddleware,                // CORS middlware should be first to handle preflight requests and set headers
+		middleware.RequestLogger(s.log), // Request logger for caputring all the requests and check route timings
 	}
 	return applyMiddleware(mux, globalMiddlewares...)
 }
