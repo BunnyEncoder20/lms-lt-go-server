@@ -3,6 +3,7 @@ package trainings
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -66,6 +67,7 @@ func (h *Handler) HandleGetTraining(w http.ResponseWriter, r *http.Request) {
 
 	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
+		Message: fmt.Sprintf("training retrieved successfully for id '%s'", id),
 		Data:    training,
 	})
 }
@@ -100,6 +102,7 @@ func (h *Handler) HandleGetTrainingCategory(w http.ResponseWriter, r *http.Reque
 
 	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
+		Message: fmt.Sprintf("trainings retrieved successfully for category '%s', count: %d", category, len(trainings)),
 		Data:    trainings,
 	})
 }
@@ -119,6 +122,7 @@ func (h *Handler) HandleGetUpcomingTraining(w http.ResponseWriter, r *http.Reque
 
 	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
+		Message: fmt.Sprintf("upcoming trainings retrieved successfully, count: %d", len(trainings)),
 		Data:    trainings,
 	})
 }
@@ -148,6 +152,7 @@ func (h *Handler) HandleGetEmployeeTraining(w http.ResponseWriter, r *http.Reque
 
 	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
+		Message: fmt.Sprintf("trainings retrieved successfully for employee '%s', count: %d", userID, len(trainings)),
 		Data:    trainings,
 	})
 }

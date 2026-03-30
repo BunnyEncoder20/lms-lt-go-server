@@ -1,6 +1,5 @@
 services:
   api-offline:
-    container_name: lms-lt-go-server
     build:
       context: .
       dockerfile: Dockerfile.offline
