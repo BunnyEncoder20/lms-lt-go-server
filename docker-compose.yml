@@ -1,0 +1,22 @@
+services:
+  api:
+    build: .
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      - PORT=8080
+      - DB_URL=local_lms.db
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key}
+      # - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3000}
+    volumes:
+      - ./local_lms.db:/root/local_lms.db
+    restart: unless-stopped
+    # Resource limits to see how it behaves under constraints
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M

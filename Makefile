@@ -22,6 +22,14 @@ clean:
 	@rm -f main
 	@rm -rf ./tmp
 
+docker-up:
+	@echo "Compiling and running the server in Docker..."
+	@docker compose up --build -d
+
+docker-down:
+	@echo "Stopping and removing Docker containers..."
+	@docker compose down
+
 # Live Reload
 watch:
 	@if command -v air > /dev/null; then \
@@ -38,7 +46,7 @@ watch:
             fi; \
         fi
 
-.PHONY: all build run test clean watch
+.PHONY: all build run test clean watch docker-run docker-down
 
 # Reseting the db and seeding the dummy data
 .PHONY: db-seed
