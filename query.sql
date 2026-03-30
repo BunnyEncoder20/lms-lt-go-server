@@ -134,6 +134,11 @@ SELECT * FROM trainings
 WHERE is_active = 1
 ORDER BY start_date ASC;
 
+-- name: GetAllPublishedCourses :many
+SELECT * FROM trainings
+WHERE start_date > CURRENT_TIMESTAMP OR is_active = 1
+ORDER BY t.start_date ASC;
+
 -- name: GetTrainingByID :one
 SELECT * FROM trainings
 WHERE id = ?;
@@ -164,13 +169,19 @@ UPDATE trainings SET
     pre_read_uri = COALESCE(sqlc.narg('pre_read_uri'), pre_read_uri),
     deadline_days = COALESCE(sqlc.narg('deadline_days'), deadline_days),
     mapped_category = COALESCE(sqlc.narg('mapped_category'), mapped_category),
-    mode_of_delivery = COALESCE(sqlc.narg('mode_of_delivery'), mode_of_delivery),
+    mode_of_delivery
+    = COALESCE(sqlc.narg('mode_of_delivery'), mode_of_delivery),
     instructor_name = COALESCE(sqlc.narg('instructor_name'), instructor_name),
-    institute_partner_name = COALESCE(sqlc.narg('institute_partner_name'), institute_partner_name),
-    process_owner_name = COALESCE(sqlc.narg('process_owner_name'), process_owner_name),
-    process_owner_email = COALESCE(sqlc.narg('process_owner_email'), process_owner_email),
-    duration_manhours = COALESCE(sqlc.narg('duration_manhours'), duration_manhours),
-    training_mandays = COALESCE(sqlc.narg('training_mandays'), training_mandays),
+    institute_partner_name
+    = COALESCE(sqlc.narg('institute_partner_name'), institute_partner_name),
+    process_owner_name
+    = COALESCE(sqlc.narg('process_owner_name'), process_owner_name),
+    process_owner_email
+    = COALESCE(sqlc.narg('process_owner_email'), process_owner_email),
+    duration_manhours
+    = COALESCE(sqlc.narg('duration_manhours'), duration_manhours),
+    training_mandays
+    = COALESCE(sqlc.narg('training_mandays'), training_mandays),
     is_active = COALESCE(sqlc.narg('is_active'), is_active),
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
@@ -202,6 +213,78 @@ ORDER BY t.start_date ASC;
 -- name: GetNominationsByTrainingID :many
 SELECT * FROM nominations
 WHERE training_id = ?;
+
+-- name: GetNominationByID :one
+SELECT * FROM nominations
+WHERE id = ?;
+
+-- name: GetNominationsByManagerID :many
+SELECT n.* FROM nominations n
+JOIN users u ON n.user_id = u.id
+WHERE u.is_id = ?
+ORDER BY n.created_at DESC;
+
+-- name: UpdateNominationStatus :one
+UPDATE nominations SET
+    status = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING *;
+
+-- name: ListNominationsByFilters :many
+SELECT n.* FROM nominations n
+WHERE
+    (COALESCE(sqlc.narg('status'), '') = '' OR n.status = sqlc.narg('status'))
+    AND (
+        COALESCE(sqlc.narg('training_id'), '') = ''
+        OR n.training_id = sqlc.narg('training_id')
+    )
+    AND (
+        COALESCE(sqlc.narg('user_id'), '') = ''
+        OR n.user_id = sqlc.narg('user_id')
+    )
+    AND (
+        COALESCE(sqlc.narg('nominated_by_id'), '') = ''
+        OR n.nominated_by_id = sqlc.narg('nominated_by_id')
+    )
+ORDER BY n.created_at DESC;
+
+-- name: CountNominationsByStatus :one
+SELECT
+    COUNT(*) AS total_count,
+    SUM(CASE WHEN status = 'PENDING_MANAGER' THEN 1 ELSE 0 END)
+        AS pending_count,
+    SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) AS approved_count,
+    SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed_count,
+    SUM(CASE WHEN status = 'ATTENDED' THEN 1 ELSE 0 END) AS attended_count
+FROM nominations;
+
+-- name: CountNominationsByUserID :one
+SELECT
+    COUNT(*) AS total_count,
+    SUM(CASE WHEN status = 'PENDING_MANAGER' THEN 1 ELSE 0 END)
+        AS pending_count,
+    SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) AS approved_count,
+    SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed_count,
+    SUM(CASE WHEN status = 'ATTENDED' THEN 1 ELSE 0 END) AS attended_count
+FROM nominations
+WHERE user_id = ?;
+
+-- name: CountTeamNominationsByManager :one
+SELECT
+    COUNT(*) AS total_count,
+    SUM(CASE WHEN status = 'PENDING_MANAGER' THEN 1 ELSE 0 END)
+        AS pending_count,
+    SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) AS approved_count,
+    SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed_count,
+    SUM(CASE WHEN status = 'ATTENDED' THEN 1 ELSE 0 END) AS attended_count
+FROM nominations n
+JOIN users u ON n.user_id = u.id
+WHERE u.is_id = ?;
+
+-- name: CountTeamMembers :one
+SELECT COUNT(*) FROM users
+WHERE is_id = ?;
 
 -- name: UpsertNomination :one
 INSERT INTO nominations (
