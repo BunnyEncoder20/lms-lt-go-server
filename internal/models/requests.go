@@ -101,3 +101,31 @@ type UpdateTrainingRequest struct {
 	TrainingMandays      *float64 `json:"training_mandays,omitempty"`
 	IsActive             *bool    `json:"is_active,omitempty"`
 }
+
+// Nomination Requests
+
+type CreateNominationRequest struct {
+	TrainingID string   `json:"training_id"`
+	UserIDs    []string `json:"user_ids"`
+}
+
+type NominationResponseRequest struct {
+	Status string `json:"status"` // ACCEPTED, DECLINED
+}
+
+type SelfNominationRequest struct {
+	TrainingID string `json:"training_id"`
+}
+
+type UpdateNominationStatusRequest struct {
+	Status NominationStatus `json:"status"`
+}
+
+type NominationFilters struct {
+	Status     *string `json:"status,omitempty"`
+	TrainingID *string `json:"training_id,omitempty"`
+	UserID     *string `json:"user_id,omitempty"`
+	ManagerID  *string `json:"manager_id,omitempty"`
+	StartDate  *string `json:"start_date,omitempty"`
+	EndDate    *string `json:"end_date,omitempty"`
+}

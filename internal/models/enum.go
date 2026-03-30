@@ -16,10 +16,21 @@ type NominationStatus string
 const (
 	NomPending   NominationStatus = "PENDING_MANAGER"
 	NomApproved  NominationStatus = "APPROVED"
-	NomRejected  NominationStatus = "REJECTED"
 	NomCompleted NominationStatus = "COMPLETED"
+	NomDeclined  NominationStatus = "DECLINED"
+	NomRejected  NominationStatus = "REJECTED"
 	NomAttended  NominationStatus = "ATTENDED"
 )
+
+// IsValidNominationStatus Helper func in models package
+func IsValidNominationStatus(status NominationStatus) bool {
+	switch status {
+	case NomPending, NomApproved, NomCompleted, NomDeclined, NomRejected, NomAttended:
+		return true
+	default:
+		return false
+	}
+}
 
 // CourseStatus represents the status of a course in the system.
 type CourseStatus string
