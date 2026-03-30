@@ -8,6 +8,7 @@ import (
 	"go-server/internal/auth"
 	"go-server/internal/middleware"
 	"go-server/internal/models"
+	"go-server/internal/nominations"
 	"go-server/internal/trainings"
 	"go-server/internal/users"
 )
@@ -37,6 +38,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	trainingsService := trainings.NewService(s.db)
 	trainingsHandler := trainings.NewHandler(trainingsService, s.log)
+
+	nominationsService := nominations.NewService(s.db)
+	nominationsHandler := nominations.NewHandler(nominationsService, s.log)
 
 	// Middleware Stacks
 	// grouping middlewares into slices makes applying them to routes incredibly easy and clean.
@@ -71,16 +75,34 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.Handle("DELETE /admin/users/permanent/{id}", applyMiddleware(http.HandlerFunc(usersHandler.HandleDeleteUser), adminOnlyMiddlewares...))
 
 	// Training Management
-	// Public/Employee routes (accessible to authenticated users)
+	// -- Public/Employee routes (accessible to authenticated users)
 	mux.Handle("GET /trainings", middleware.RequireAuth(http.HandlerFunc(trainingsHandler.HandleListTraining)))
 	mux.Handle("GET /trainings/{id}", middleware.RequireAuth(http.HandlerFunc(trainingsHandler.HandleGetTraining)))
 	mux.Handle("GET /trainings/category/{category}", middleware.RequireAuth(http.HandlerFunc(trainingsHandler.HandleGetTrainingCategory)))
 	mux.Handle("GET /trainings/upcoming", middleware.RequireAuth(http.HandlerFunc(trainingsHandler.HandleGetUpcomingTraining)))
 	mux.Handle("GET /my-trainings", middleware.RequireAuth(http.HandlerFunc(trainingsHandler.HandleGetEmployeeTraining)))
-	// Admin only routes
+	// -- Admin only routes
 	mux.Handle("POST /admin/trainings", applyMiddleware(http.HandlerFunc(trainingsHandler.HandleCreateTraining), adminOnlyMiddlewares...))
 	mux.Handle("PATCH /admin/trainings/{id}", applyMiddleware(http.HandlerFunc(trainingsHandler.HandleUpdateTraining), adminOnlyMiddlewares...))
 	mux.Handle("DELETE /admin/trainings/{id}", applyMiddleware(http.HandlerFunc(trainingsHandler.HandleDeleteTraining), adminOnlyMiddlewares...))
+
+	// Nominations Management
+	// -- Employee/Common routes (accessible to authenticated users)
+	mux.Handle("GET /nominations/my", middleware.RequireAuth(http.HandlerFunc(nominationsHandler.HandleGetMyNominations)))
+	mux.Handle("POST /nominations/self", middleware.RequireAuth(http.HandlerFunc(nominationsHandler.HandleSelfNomination)))
+	mux.Handle("POST /nominations/{id}/respond", middleware.RequireAuth(http.HandlerFunc(nominationsHandler.HandleRespondToNomination)))
+	mux.Handle("GET /dashboard/employee", middleware.RequireAuth(http.HandlerFunc(nominationsHandler.HandleGetEmployeeDashboard)))
+	mux.Handle("GET /courses/published", middleware.RequireAuth(http.HandlerFunc(nominationsHandler.HandleGetAllPublishedCourses)))
+	// -- Manager routes
+	mux.Handle("POST /nominations", applyMiddleware(http.HandlerFunc(nominationsHandler.HandleNominateEmployees), managerOrAdminMiddlewares...))
+	mux.Handle("GET /nominations/team", applyMiddleware(http.HandlerFunc(nominationsHandler.HandleGetTeamNominations), managerOrAdminMiddlewares...))
+	mux.Handle("POST /nominations/{id}/manager-respond", applyMiddleware(http.HandlerFunc(nominationsHandler.HandleRespondToSelfNomination), managerOrAdminMiddlewares...))
+	mux.Handle("GET /dashboard/manager", applyMiddleware(http.HandlerFunc(nominationsHandler.HandleGetManagerDashboard), managerOrAdminMiddlewares...))
+	// -- Admin only routes
+	mux.Handle("GET /admin/nominations", applyMiddleware(http.HandlerFunc(nominationsHandler.HandleGetAllNominations), adminOnlyMiddlewares...))
+	mux.Handle("PATCH /admin/nominations/{id}/status", applyMiddleware(http.HandlerFunc(nominationsHandler.HandleUpdateNominationStatus), adminOnlyMiddlewares...))
+
+	// Global Middlewares - these apply to all routes and are added at the end to wrap everything
 	globalMiddlewares := []Middleware{
 		s.corsMiddleware,                // CORS middlware should be first to handle preflight requests and set headers
 		middleware.RequestLogger(s.log), // Request logger for caputring all the requests and check route timings
