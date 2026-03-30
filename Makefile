@@ -22,13 +22,18 @@ clean:
 	@rm -f main
 	@rm -rf ./tmp
 
-docker-up:
-	@echo "Compiling and running the server in Docker..."
-	@docker compose up --build -d
+# Build the binary for the docker linux
+docker-offline-up:
+	@echo "Building the binary for the docker env..."
+	@CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api/main.go
+	@echo "Starting the offline docker compose..."
+	@docker compose -f docker-compose.offline.yml up --build -d
 
+# Stop all docker containers (both standard and offline)
 docker-down:
-	@echo "Stopping and removing Docker containers..."
+	@echo "Stopping and removing all Docker containers..."
 	@docker compose down
+	@docker compose -f docker-compose.offline.yml down
 
 # Live Reload
 watch:
@@ -46,7 +51,7 @@ watch:
             fi; \
         fi
 
-.PHONY: all build run test clean watch docker-run docker-down
+.PHONY: all build run test clean watch docker-up docker-down docker-offline-up
 
 # Reseting the db and seeding the dummy data
 .PHONY: db-seed

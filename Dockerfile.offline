@@ -1,0 +1,19 @@
+# Minimal Dockerfile for pre-compiled Go binary
+FROM alpine:latest
+
+# Install CA certificates for HTTPS requests if needed
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+# Copy the pre-built binary and database from the host
+# This assumes 'make docker-build' and 'make db-seed' were run first
+COPY main .
+COPY .env.example .env
+COPY local_lms.db .
+
+# Expose port 8080
+EXPOSE 8080
+
+# Command to run
+CMD ["./main"]

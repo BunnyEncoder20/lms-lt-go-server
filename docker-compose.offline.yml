@@ -1,0 +1,17 @@
+services:
+  api-offline:
+    container_name: lms-lt-go-server
+    build:
+      context: .
+      dockerfile: Dockerfile.offline
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DB_URL=local_lms.db
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key}
+    deploy:
+      resources:
+        limits:
+          memory: 500M
+    restart: unless-stopped
