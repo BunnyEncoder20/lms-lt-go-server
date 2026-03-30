@@ -45,7 +45,7 @@ func main() {
 
 	// Default values for required fields in users table
 	defaultUserParams := db.UpsertUserParams{
-		Title:        "Mr/Ms",
+		Title:        "Mr",
 		Gender:       "M",
 		Band:         "B1",
 		Grade:        "G1",
