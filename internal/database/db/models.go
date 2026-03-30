@@ -8,9 +8,8 @@ import (
 	"database/sql"
 	"time"
 
-	"go-server/internal/models"
-
 	"github.com/google/uuid"
+	"go-server/internal/models"
 )
 
 type Course struct {
@@ -101,7 +100,7 @@ type Training struct {
 	EndDate              time.Time               `json:"end_date"`
 	Location             sql.NullString          `json:"location"`
 	VirtualLink          sql.NullString          `json:"virtual_link"`
-	PreReadURI           sql.NullString          `json:"pre_read_uri"`
+	PreReadUri           sql.NullString          `json:"pre_read_uri"`
 	CreatedByID          uuid.UUID               `json:"created_by_id"`
 	DeadlineDays         int64                   `json:"deadline_days"`
 	HrProgramID          uuid.UUID               `json:"hr_program_id"`

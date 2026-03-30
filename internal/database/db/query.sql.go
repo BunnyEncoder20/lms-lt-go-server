@@ -10,18 +10,18 @@ import (
 	"database/sql"
 	"time"
 
-	"go-server/internal/models"
-
 	"github.com/google/uuid"
+	"go-server/internal/models"
 )
 
 const countNominationsByStatus = `-- name: CountNominationsByStatus :one
-SELECT 
-    COUNT(*) as total_count,
-    SUM(CASE WHEN status = 'PENDING_MANAGER' THEN 1 ELSE 0 END) as pending_count,
-    SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) as approved_count,
-    SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_count,
-    SUM(CASE WHEN status = 'ATTENDED' THEN 1 ELSE 0 END) as attended_count
+SELECT
+    COUNT(*) AS total_count,
+    SUM(CASE WHEN status = 'PENDING_MANAGER' THEN 1 ELSE 0 END)
+        AS pending_count,
+    SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) AS approved_count,
+    SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed_count,
+    SUM(CASE WHEN status = 'ATTENDED' THEN 1 ELSE 0 END) AS attended_count
 FROM nominations
 `
 
@@ -47,12 +47,13 @@ func (q *Queries) CountNominationsByStatus(ctx context.Context) (CountNomination
 }
 
 const countNominationsByUserID = `-- name: CountNominationsByUserID :one
-SELECT 
-    COUNT(*) as total_count,
-    SUM(CASE WHEN status = 'PENDING_MANAGER' THEN 1 ELSE 0 END) as pending_count,
-    SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) as approved_count,
-    SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_count,
-    SUM(CASE WHEN status = 'ATTENDED' THEN 1 ELSE 0 END) as attended_count
+SELECT
+    COUNT(*) AS total_count,
+    SUM(CASE WHEN status = 'PENDING_MANAGER' THEN 1 ELSE 0 END)
+        AS pending_count,
+    SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) AS approved_count,
+    SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed_count,
+    SUM(CASE WHEN status = 'ATTENDED' THEN 1 ELSE 0 END) AS attended_count
 FROM nominations
 WHERE user_id = ?
 `
@@ -91,12 +92,13 @@ func (q *Queries) CountTeamMembers(ctx context.Context, isID uuid.NullUUID) (int
 }
 
 const countTeamNominationsByManager = `-- name: CountTeamNominationsByManager :one
-SELECT 
-    COUNT(*) as total_count,
-    SUM(CASE WHEN status = 'PENDING_MANAGER' THEN 1 ELSE 0 END) as pending_count,
-    SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) as approved_count,
-    SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_count,
-    SUM(CASE WHEN status = 'ATTENDED' THEN 1 ELSE 0 END) as attended_count
+SELECT
+    COUNT(*) AS total_count,
+    SUM(CASE WHEN status = 'PENDING_MANAGER' THEN 1 ELSE 0 END)
+        AS pending_count,
+    SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) AS approved_count,
+    SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed_count,
+    SUM(CASE WHEN status = 'ATTENDED' THEN 1 ELSE 0 END) AS attended_count
 FROM nominations n
 JOIN users u ON n.user_id = u.id
 WHERE u.is_id = ?
@@ -464,7 +466,7 @@ func (q *Queries) CreateTraining(ctx context.Context, arg CreateTrainingParams) 
 		&i.EndDate,
 		&i.Location,
 		&i.VirtualLink,
-		&i.PreReadURI,
+		&i.PreReadUri,
 		&i.CreatedByID,
 		&i.DeadlineDays,
 		&i.HrProgramID,
@@ -596,6 +598,60 @@ WHERE id = ?
 func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, deleteUser, id)
 	return err
+}
+
+const getAllPublishedCourses = `-- name: GetAllPublishedCourses :many
+SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
+WHERE start_date > CURRENT_TIMESTAMP OR is_active = 1
+ORDER BY t.start_date ASC
+`
+
+func (q *Queries) GetAllPublishedCourses(ctx context.Context) ([]Training, error) {
+	rows, err := q.db.QueryContext(ctx, getAllPublishedCourses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Training
+	for rows.Next() {
+		var i Training
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Category,
+			&i.StartDate,
+			&i.EndDate,
+			&i.Location,
+			&i.VirtualLink,
+			&i.PreReadUri,
+			&i.CreatedByID,
+			&i.DeadlineDays,
+			&i.HrProgramID,
+			&i.MappedCategory,
+			&i.ModeOfDelivery,
+			&i.InstructorName,
+			&i.InstitutePartnerName,
+			&i.ProcessOwnerName,
+			&i.ProcessOwnerEmail,
+			&i.DurationManhours,
+			&i.TrainingMandays,
+			&i.FacilityID,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getCourseByTitle = `-- name: GetCourseByTitle :one
@@ -910,7 +966,7 @@ func (q *Queries) GetTrainingByID(ctx context.Context, id uuid.UUID) (Training, 
 		&i.EndDate,
 		&i.Location,
 		&i.VirtualLink,
-		&i.PreReadURI,
+		&i.PreReadUri,
 		&i.CreatedByID,
 		&i.DeadlineDays,
 		&i.HrProgramID,
@@ -947,7 +1003,7 @@ func (q *Queries) GetTrainingByTitle(ctx context.Context, title string) (Trainin
 		&i.EndDate,
 		&i.Location,
 		&i.VirtualLink,
-		&i.PreReadURI,
+		&i.PreReadUri,
 		&i.CreatedByID,
 		&i.DeadlineDays,
 		&i.HrProgramID,
@@ -1105,7 +1161,7 @@ func (q *Queries) ListActiveTrainings(ctx context.Context) ([]Training, error) {
 			&i.EndDate,
 			&i.Location,
 			&i.VirtualLink,
-			&i.PreReadURI,
+			&i.PreReadUri,
 			&i.CreatedByID,
 			&i.DeadlineDays,
 			&i.HrProgramID,
@@ -1178,10 +1234,20 @@ func (q *Queries) ListLessonsByCourse(ctx context.Context, courseID uuid.UUID) (
 
 const listNominationsByFilters = `-- name: ListNominationsByFilters :many
 SELECT n.id, n.status, n.user_id, n.training_id, n.nominated_by_id, n.hr_completion_status, n.prof_fees, n.venue_cost, n.other_cost, n.non_tems_travel, n.non_tems_accommodation, n.total_cost, n.created_at, n.updated_at FROM nominations n
-WHERE (COALESCE(?1, '') = '' OR n.status = ?1)
-  AND (COALESCE(?2, '') = '' OR n.training_id = ?2)
-  AND (COALESCE(?3, '') = '' OR n.user_id = ?3)
-  AND (COALESCE(?4, '') = '' OR n.nominated_by_id = ?4)
+WHERE
+    (COALESCE(?1, '') = '' OR n.status = ?1)
+    AND (
+        COALESCE(?2, '') = ''
+        OR n.training_id = ?2
+    )
+    AND (
+        COALESCE(?3, '') = ''
+        OR n.user_id = ?3
+    )
+    AND (
+        COALESCE(?4, '') = ''
+        OR n.nominated_by_id = ?4
+    )
 ORDER BY n.created_at DESC
 `
 
@@ -1258,7 +1324,7 @@ func (q *Queries) ListTrainings(ctx context.Context) ([]Training, error) {
 			&i.EndDate,
 			&i.Location,
 			&i.VirtualLink,
-			&i.PreReadURI,
+			&i.PreReadUri,
 			&i.CreatedByID,
 			&i.DeadlineDays,
 			&i.HrProgramID,
@@ -1312,7 +1378,7 @@ func (q *Queries) ListTrainingsByCategory(ctx context.Context, category models.T
 			&i.EndDate,
 			&i.Location,
 			&i.VirtualLink,
-			&i.PreReadURI,
+			&i.PreReadUri,
 			&i.CreatedByID,
 			&i.DeadlineDays,
 			&i.HrProgramID,
@@ -1366,7 +1432,7 @@ func (q *Queries) ListUpcomingTrainings(ctx context.Context) ([]Training, error)
 			&i.EndDate,
 			&i.Location,
 			&i.VirtualLink,
-			&i.PreReadURI,
+			&i.PreReadUri,
 			&i.CreatedByID,
 			&i.DeadlineDays,
 			&i.HrProgramID,
@@ -1497,13 +1563,19 @@ UPDATE trainings SET
     pre_read_uri = COALESCE(?9, pre_read_uri),
     deadline_days = COALESCE(?10, deadline_days),
     mapped_category = COALESCE(?11, mapped_category),
-    mode_of_delivery = COALESCE(?12, mode_of_delivery),
+    mode_of_delivery
+    = COALESCE(?12, mode_of_delivery),
     instructor_name = COALESCE(?13, instructor_name),
-    institute_partner_name = COALESCE(?14, institute_partner_name),
-    process_owner_name = COALESCE(?15, process_owner_name),
-    process_owner_email = COALESCE(?16, process_owner_email),
-    duration_manhours = COALESCE(?17, duration_manhours),
-    training_mandays = COALESCE(?18, training_mandays),
+    institute_partner_name
+    = COALESCE(?14, institute_partner_name),
+    process_owner_name
+    = COALESCE(?15, process_owner_name),
+    process_owner_email
+    = COALESCE(?16, process_owner_email),
+    duration_manhours
+    = COALESCE(?17, duration_manhours),
+    training_mandays
+    = COALESCE(?18, training_mandays),
     is_active = COALESCE(?19, is_active),
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
@@ -1564,7 +1636,7 @@ func (q *Queries) UpdateTraining(ctx context.Context, arg UpdateTrainingParams) 
 		&i.EndDate,
 		&i.Location,
 		&i.VirtualLink,
-		&i.PreReadURI,
+		&i.PreReadUri,
 		&i.CreatedByID,
 		&i.DeadlineDays,
 		&i.HrProgramID,
@@ -2080,7 +2152,7 @@ func (q *Queries) UpsertTraining(ctx context.Context, arg UpsertTrainingParams) 
 		&i.EndDate,
 		&i.Location,
 		&i.VirtualLink,
-		&i.PreReadURI,
+		&i.PreReadUri,
 		&i.CreatedByID,
 		&i.DeadlineDays,
 		&i.HrProgramID,
