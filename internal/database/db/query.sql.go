@@ -10,9 +10,118 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/google/uuid"
 	"go-server/internal/models"
+
+	"github.com/google/uuid"
 )
+
+const countNominationsByStatus = `-- name: CountNominationsByStatus :one
+SELECT 
+    COUNT(*) as total_count,
+    SUM(CASE WHEN status = 'PENDING_MANAGER' THEN 1 ELSE 0 END) as pending_count,
+    SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) as approved_count,
+    SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_count,
+    SUM(CASE WHEN status = 'ATTENDED' THEN 1 ELSE 0 END) as attended_count
+FROM nominations
+`
+
+type CountNominationsByStatusRow struct {
+	TotalCount     int64           `json:"total_count"`
+	PendingCount   sql.NullFloat64 `json:"pending_count"`
+	ApprovedCount  sql.NullFloat64 `json:"approved_count"`
+	CompletedCount sql.NullFloat64 `json:"completed_count"`
+	AttendedCount  sql.NullFloat64 `json:"attended_count"`
+}
+
+func (q *Queries) CountNominationsByStatus(ctx context.Context) (CountNominationsByStatusRow, error) {
+	row := q.db.QueryRowContext(ctx, countNominationsByStatus)
+	var i CountNominationsByStatusRow
+	err := row.Scan(
+		&i.TotalCount,
+		&i.PendingCount,
+		&i.ApprovedCount,
+		&i.CompletedCount,
+		&i.AttendedCount,
+	)
+	return i, err
+}
+
+const countNominationsByUserID = `-- name: CountNominationsByUserID :one
+SELECT 
+    COUNT(*) as total_count,
+    SUM(CASE WHEN status = 'PENDING_MANAGER' THEN 1 ELSE 0 END) as pending_count,
+    SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) as approved_count,
+    SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_count,
+    SUM(CASE WHEN status = 'ATTENDED' THEN 1 ELSE 0 END) as attended_count
+FROM nominations
+WHERE user_id = ?
+`
+
+type CountNominationsByUserIDRow struct {
+	TotalCount     int64           `json:"total_count"`
+	PendingCount   sql.NullFloat64 `json:"pending_count"`
+	ApprovedCount  sql.NullFloat64 `json:"approved_count"`
+	CompletedCount sql.NullFloat64 `json:"completed_count"`
+	AttendedCount  sql.NullFloat64 `json:"attended_count"`
+}
+
+func (q *Queries) CountNominationsByUserID(ctx context.Context, userID uuid.UUID) (CountNominationsByUserIDRow, error) {
+	row := q.db.QueryRowContext(ctx, countNominationsByUserID, userID)
+	var i CountNominationsByUserIDRow
+	err := row.Scan(
+		&i.TotalCount,
+		&i.PendingCount,
+		&i.ApprovedCount,
+		&i.CompletedCount,
+		&i.AttendedCount,
+	)
+	return i, err
+}
+
+const countTeamMembers = `-- name: CountTeamMembers :one
+SELECT COUNT(*) FROM users
+WHERE is_id = ?
+`
+
+func (q *Queries) CountTeamMembers(ctx context.Context, isID uuid.NullUUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countTeamMembers, isID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countTeamNominationsByManager = `-- name: CountTeamNominationsByManager :one
+SELECT 
+    COUNT(*) as total_count,
+    SUM(CASE WHEN status = 'PENDING_MANAGER' THEN 1 ELSE 0 END) as pending_count,
+    SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) as approved_count,
+    SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_count,
+    SUM(CASE WHEN status = 'ATTENDED' THEN 1 ELSE 0 END) as attended_count
+FROM nominations n
+JOIN users u ON n.user_id = u.id
+WHERE u.is_id = ?
+`
+
+type CountTeamNominationsByManagerRow struct {
+	TotalCount     int64           `json:"total_count"`
+	PendingCount   sql.NullFloat64 `json:"pending_count"`
+	ApprovedCount  sql.NullFloat64 `json:"approved_count"`
+	CompletedCount sql.NullFloat64 `json:"completed_count"`
+	AttendedCount  sql.NullFloat64 `json:"attended_count"`
+}
+
+func (q *Queries) CountTeamNominationsByManager(ctx context.Context, isID uuid.NullUUID) (CountTeamNominationsByManagerRow, error) {
+	row := q.db.QueryRowContext(ctx, countTeamNominationsByManager, isID)
+	var i CountTeamNominationsByManagerRow
+	err := row.Scan(
+		&i.TotalCount,
+		&i.PendingCount,
+		&i.ApprovedCount,
+		&i.CompletedCount,
+		&i.AttendedCount,
+	)
+	return i, err
+}
 
 const createCourse = `-- name: CreateCourse :one
 INSERT INTO courses (
@@ -355,7 +464,7 @@ func (q *Queries) CreateTraining(ctx context.Context, arg CreateTrainingParams) 
 		&i.EndDate,
 		&i.Location,
 		&i.VirtualLink,
-		&i.PreReadUri,
+		&i.PreReadURI,
 		&i.CreatedByID,
 		&i.DeadlineDays,
 		&i.HrProgramID,
@@ -570,6 +679,78 @@ func (q *Queries) GetCourseWithAuthor(ctx context.Context, id uuid.UUID) (GetCou
 	return i, err
 }
 
+const getNominationByID = `-- name: GetNominationByID :one
+SELECT id, status, user_id, training_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at FROM nominations
+WHERE id = ?
+`
+
+func (q *Queries) GetNominationByID(ctx context.Context, id uuid.UUID) (Nomination, error) {
+	row := q.db.QueryRowContext(ctx, getNominationByID, id)
+	var i Nomination
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.UserID,
+		&i.TrainingID,
+		&i.NominatedByID,
+		&i.HrCompletionStatus,
+		&i.ProfFees,
+		&i.VenueCost,
+		&i.OtherCost,
+		&i.NonTemsTravel,
+		&i.NonTemsAccommodation,
+		&i.TotalCost,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getNominationsByManagerID = `-- name: GetNominationsByManagerID :many
+SELECT n.id, n.status, n.user_id, n.training_id, n.nominated_by_id, n.hr_completion_status, n.prof_fees, n.venue_cost, n.other_cost, n.non_tems_travel, n.non_tems_accommodation, n.total_cost, n.created_at, n.updated_at FROM nominations n
+JOIN users u ON n.user_id = u.id
+WHERE u.is_id = ?
+ORDER BY n.created_at DESC
+`
+
+func (q *Queries) GetNominationsByManagerID(ctx context.Context, isID uuid.NullUUID) ([]Nomination, error) {
+	rows, err := q.db.QueryContext(ctx, getNominationsByManagerID, isID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Nomination
+	for rows.Next() {
+		var i Nomination
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.UserID,
+			&i.TrainingID,
+			&i.NominatedByID,
+			&i.HrCompletionStatus,
+			&i.ProfFees,
+			&i.VenueCost,
+			&i.OtherCost,
+			&i.NonTemsTravel,
+			&i.NonTemsAccommodation,
+			&i.TotalCost,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getNominationsByTrainingID = `-- name: GetNominationsByTrainingID :many
 SELECT id, status, user_id, training_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at FROM nominations
 WHERE training_id = ?
@@ -729,7 +910,7 @@ func (q *Queries) GetTrainingByID(ctx context.Context, id uuid.UUID) (Training, 
 		&i.EndDate,
 		&i.Location,
 		&i.VirtualLink,
-		&i.PreReadUri,
+		&i.PreReadURI,
 		&i.CreatedByID,
 		&i.DeadlineDays,
 		&i.HrProgramID,
@@ -766,7 +947,7 @@ func (q *Queries) GetTrainingByTitle(ctx context.Context, title string) (Trainin
 		&i.EndDate,
 		&i.Location,
 		&i.VirtualLink,
-		&i.PreReadUri,
+		&i.PreReadURI,
 		&i.CreatedByID,
 		&i.DeadlineDays,
 		&i.HrProgramID,
@@ -924,7 +1105,7 @@ func (q *Queries) ListActiveTrainings(ctx context.Context) ([]Training, error) {
 			&i.EndDate,
 			&i.Location,
 			&i.VirtualLink,
-			&i.PreReadUri,
+			&i.PreReadURI,
 			&i.CreatedByID,
 			&i.DeadlineDays,
 			&i.HrProgramID,
@@ -995,6 +1176,65 @@ func (q *Queries) ListLessonsByCourse(ctx context.Context, courseID uuid.UUID) (
 	return items, nil
 }
 
+const listNominationsByFilters = `-- name: ListNominationsByFilters :many
+SELECT n.id, n.status, n.user_id, n.training_id, n.nominated_by_id, n.hr_completion_status, n.prof_fees, n.venue_cost, n.other_cost, n.non_tems_travel, n.non_tems_accommodation, n.total_cost, n.created_at, n.updated_at FROM nominations n
+WHERE (COALESCE(?1, '') = '' OR n.status = ?1)
+  AND (COALESCE(?2, '') = '' OR n.training_id = ?2)
+  AND (COALESCE(?3, '') = '' OR n.user_id = ?3)
+  AND (COALESCE(?4, '') = '' OR n.nominated_by_id = ?4)
+ORDER BY n.created_at DESC
+`
+
+type ListNominationsByFiltersParams struct {
+	Status        interface{} `json:"status"`
+	TrainingID    interface{} `json:"training_id"`
+	UserID        interface{} `json:"user_id"`
+	NominatedByID interface{} `json:"nominated_by_id"`
+}
+
+func (q *Queries) ListNominationsByFilters(ctx context.Context, arg ListNominationsByFiltersParams) ([]Nomination, error) {
+	rows, err := q.db.QueryContext(ctx, listNominationsByFilters,
+		arg.Status,
+		arg.TrainingID,
+		arg.UserID,
+		arg.NominatedByID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Nomination
+	for rows.Next() {
+		var i Nomination
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.UserID,
+			&i.TrainingID,
+			&i.NominatedByID,
+			&i.HrCompletionStatus,
+			&i.ProfFees,
+			&i.VenueCost,
+			&i.OtherCost,
+			&i.NonTemsTravel,
+			&i.NonTemsAccommodation,
+			&i.TotalCost,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTrainings = `-- name: ListTrainings :many
 SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
 ORDER BY start_date ASC
@@ -1018,7 +1258,7 @@ func (q *Queries) ListTrainings(ctx context.Context) ([]Training, error) {
 			&i.EndDate,
 			&i.Location,
 			&i.VirtualLink,
-			&i.PreReadUri,
+			&i.PreReadURI,
 			&i.CreatedByID,
 			&i.DeadlineDays,
 			&i.HrProgramID,
@@ -1072,7 +1312,7 @@ func (q *Queries) ListTrainingsByCategory(ctx context.Context, category models.T
 			&i.EndDate,
 			&i.Location,
 			&i.VirtualLink,
-			&i.PreReadUri,
+			&i.PreReadURI,
 			&i.CreatedByID,
 			&i.DeadlineDays,
 			&i.HrProgramID,
@@ -1126,7 +1366,7 @@ func (q *Queries) ListUpcomingTrainings(ctx context.Context) ([]Training, error)
 			&i.EndDate,
 			&i.Location,
 			&i.VirtualLink,
-			&i.PreReadUri,
+			&i.PreReadURI,
 			&i.CreatedByID,
 			&i.DeadlineDays,
 			&i.HrProgramID,
@@ -1210,6 +1450,41 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
+const updateNominationStatus = `-- name: UpdateNominationStatus :one
+UPDATE nominations SET
+    status = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, status, user_id, training_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at
+`
+
+type UpdateNominationStatusParams struct {
+	Status models.NominationStatus `json:"status"`
+	ID     uuid.UUID               `json:"id"`
+}
+
+func (q *Queries) UpdateNominationStatus(ctx context.Context, arg UpdateNominationStatusParams) (Nomination, error) {
+	row := q.db.QueryRowContext(ctx, updateNominationStatus, arg.Status, arg.ID)
+	var i Nomination
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.UserID,
+		&i.TrainingID,
+		&i.NominatedByID,
+		&i.HrCompletionStatus,
+		&i.ProfFees,
+		&i.VenueCost,
+		&i.OtherCost,
+		&i.NonTemsTravel,
+		&i.NonTemsAccommodation,
+		&i.TotalCost,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateTraining = `-- name: UpdateTraining :one
 UPDATE trainings SET
     title = COALESCE(?2, title),
@@ -1289,7 +1564,7 @@ func (q *Queries) UpdateTraining(ctx context.Context, arg UpdateTrainingParams) 
 		&i.EndDate,
 		&i.Location,
 		&i.VirtualLink,
-		&i.PreReadUri,
+		&i.PreReadURI,
 		&i.CreatedByID,
 		&i.DeadlineDays,
 		&i.HrProgramID,
@@ -1805,7 +2080,7 @@ func (q *Queries) UpsertTraining(ctx context.Context, arg UpsertTrainingParams) 
 		&i.EndDate,
 		&i.Location,
 		&i.VirtualLink,
-		&i.PreReadUri,
+		&i.PreReadURI,
 		&i.CreatedByID,
 		&i.DeadlineDays,
 		&i.HrProgramID,
