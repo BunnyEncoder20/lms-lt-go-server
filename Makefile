@@ -20,6 +20,7 @@ test:
 clean:
 	@echo "Cleaning..."
 	@rm -f main
+	@rm -rf ./tmp
 
 # Live Reload
 watch:
