@@ -26,6 +26,7 @@ type Service interface {
 	// Funcs to give modules access to queries
 	Read() *db.Queries
 	Write() *db.Queries
+	ExecTx(ctx context.Context, fn func(*db.Queries) error) error // exec a func inside a transaction safely
 }
 
 type service struct {
@@ -160,4 +161,28 @@ func (s *service) Read() *db.Queries {
 
 func (s *service) Write() *db.Queries {
 	return db.New(s.writer)
+}
+
+func (s *service) ExecTx(ctx context.Context, fn func(*db.Queries) error) error {
+	// 1. Start the transaction using the writer pool
+	tx, err := s.writer.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	// 2. Give the transaction to sqlc so that it can run our generated queries inside this transaction
+	qtx := db.New(tx)
+
+	// 3. Run the custom logic you pass into this function
+	err = fn(qtx)
+	if err != nil {
+		// 4. if logic returns an error, we ROLLBACK the sandbox
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return fmt.Errorf("tx error: %v, rollback error: %v", err, rbErr)
+		}
+		return err // return the original error
+	}
+
+	// 5. If everything went perfectly, commit the transaction
+	return tx.Commit()
 }
