@@ -3,6 +3,8 @@ package users
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 
@@ -96,29 +98,59 @@ func (h *Handler) HandleGetMyTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
-	var req models.CreateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	// Read the body once
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
 		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
-			Message: "invalid request body",
+			Message: "failed to read request body",
 		})
 		return
 	}
 
-	user, err := h.svc.Create(r.Context(), req)
-	if err != nil {
-		h.log.Error("failed to create user", "error", err)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+	var usersReq []models.CreateUserRequest
+	// Try to decode as array
+	if err := json.Unmarshal(body, &usersReq); err != nil {
+		// If not array, try as single object
+		var singleReq models.CreateUserRequest
+		if err := json.Unmarshal(body, &singleReq); err != nil {
+			h.log.Warn("invalid request body for create user", "error", err)
+			models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+				Success: false,
+				Message: "invalid request body",
+			})
+			return
+		}
+		usersReq = []models.CreateUserRequest{singleReq}
+	}
+
+	if len(usersReq) == 0 {
+		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
-			Message: "failed to create user",
+			Message: "no users provided",
 		})
 		return
+	}
+
+	users, err := h.svc.Create(r.Context(), usersReq)
+	if err != nil {
+		h.log.Error("failed to create user(s)", "error", err)
+		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+			Success: false,
+			Message: "failed to create user(s)",
+		})
+		return
+	}
+
+	message := "user created successfully"
+	if len(users) > 1 {
+		message = fmt.Sprintf("%d users created successfully", len(users))
 	}
 
 	models.WriteJSON(w, http.StatusCreated, models.JSONResponse{
 		Success: true,
-		Message: "user created successfully",
-		Data:    user,
+		Message: message,
+		Data:    users,
 	})
 }
 

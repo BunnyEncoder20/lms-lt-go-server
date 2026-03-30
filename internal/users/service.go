@@ -19,7 +19,7 @@ type Service interface {
 	FindAll(ctx context.Context) ([]models.UserResponse, error)
 	FindOne(ctx context.Context, userID string) (models.UserResponse, error)
 	GetMyTeam(ctx context.Context, managerID string) ([]models.UserResponse, error)
-	Create(ctx context.Context, userData models.CreateUserRequest) (models.UserResponse, error)
+	Create(ctx context.Context, usersData []models.CreateUserRequest) ([]models.UserResponse, error)
 	Update(ctx context.Context, userID string, userData models.UpdateUserRequest) (models.UserResponse, error)
 	DeactivateUser(ctx context.Context, userID string, isActive bool) error
 	PermanentlyDeleteUser(ctx context.Context, userID string) error
@@ -62,59 +62,83 @@ func (s *service) FindOne(ctx context.Context, userID string) (models.UserRespon
 	return MapUserToResponse(user), nil
 }
 
-func (s *service) Create(ctx context.Context, userData models.CreateUserRequest) (models.UserResponse, error) {
-	// 1. hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(userData.Password), bcrypt.DefaultCost)
+func (s *service) Create(ctx context.Context, usersData []models.CreateUserRequest) ([]models.UserResponse, error) {
+	var responses []models.UserResponse
+
+	err := s.db.ExecTx(ctx, func(qtx *db.Queries) error {
+		for _, userData := range usersData {
+			// 1. hash the password
+			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(userData.Password), bcrypt.DefaultCost)
+			if err != nil {
+				return fmt.Errorf("hashing password for %s: %w", userData.Email, err)
+			}
+
+			// 2. Prepare the params for sqlc
+			params := db.CreateUserParams{
+				ID:           uuid.New(),
+				PesNumber:    userData.PesNumber,
+				Password:     string(hashedPassword),
+				FirstName:    userData.FirstName,
+				LastName:     userData.LastName,
+				Email:        userData.Email,
+				Role:         models.Role(userData.Role),
+				Title:        userData.Title,
+				Gender:       userData.Gender,
+				Band:         userData.Band,
+				Grade:        userData.Grade,
+				Ic:           userData.Ic,
+				Sbg:          userData.Sbg,
+				Bu:           userData.Bu,
+				Segment:      userData.Segment,
+				Department:   userData.Department,
+				BaseLocation: userData.BaseLocation,
+			}
+
+			// 3. Taking care of nullable
+			if userData.Cluster != nil {
+				params.Cluster = sql.NullString{String: *userData.Cluster, Valid: true}
+			}
+
+			if userData.IsID != nil && *userData.IsID != "" {
+				id, err := uuid.Parse(*userData.IsID)
+				if err != nil {
+					return fmt.Errorf("invalid IS ID for %s: %w", userData.Email, err)
+				}
+				params.IsID = uuid.NullUUID{UUID: id, Valid: true}
+			}
+
+			if userData.NsID != nil && *userData.NsID != "" {
+				id, err := uuid.Parse(*userData.NsID)
+				if err != nil {
+					return fmt.Errorf("invalid NS ID for %s: %w", userData.Email, err)
+				}
+				params.NsID = uuid.NullUUID{UUID: id, Valid: true}
+			}
+
+			if userData.DhID != nil && *userData.DhID != "" {
+				id, err := uuid.Parse(*userData.DhID)
+				if err != nil {
+					return fmt.Errorf("invalid DH ID for %s: %w", userData.Email, err)
+				}
+				params.DhID = uuid.NullUUID{UUID: id, Valid: true}
+			}
+
+			// finally, writing to the DB
+			user, err := qtx.CreateUser(ctx, params)
+			if err != nil {
+				return err
+			}
+			responses = append(responses, MapUserToResponse(user))
+		}
+
+		// returining nil tells the trx to commit
+		return nil
+	})
 	if err != nil {
-		return models.UserResponse{}, err
+		return nil, err
 	}
 
-	// 2. Prepare the params for sqlc
-	params := db.CreateUserParams{
-		ID:           uuid.New(),
-		PesNumber:    userData.PesNumber,
-		Password:     string(hashedPassword),
-		FirstName:    userData.FirstName,
-		LastName:     userData.LastName,
-		Email:        userData.Email,
-		Role:         models.Role(userData.Role),
-		Title:        userData.Title,
-		Gender:       userData.Gender,
-		Band:         userData.Band,
-		Grade:        userData.Grade,
-		Ic:           userData.Ic,
-		Sbg:          userData.Sbg,
-		Bu:           userData.Bu,
-		Segment:      userData.Segment,
-		Department:   userData.Department,
-		BaseLocation: userData.BaseLocation,
-	}
-
-	// 3. Taking care of nullable
-	if userData.Cluster != nil {
-		params.Cluster = sql.NullString{String: *userData.Cluster, Valid: true}
-	}
-
-	if userData.IsID != nil {
-		id, _ := uuid.Parse(*userData.IsID)
-		params.IsID = uuid.NullUUID{UUID: id, Valid: true}
-	}
-
-	if userData.NsID != nil {
-		id, _ := uuid.Parse(*userData.NsID)
-		params.NsID = uuid.NullUUID{UUID: id, Valid: true}
-	}
-
-	if userData.DhID != nil {
-		id, _ := uuid.Parse(*userData.DhID)
-		params.DhID = uuid.NullUUID{UUID: id, Valid: true}
-	}
-
-	user, err := s.db.Write().CreateUser(ctx, params)
-	if err != nil {
-		return models.UserResponse{}, err
-	}
-	return MapUserToResponse(user), nil
+	return responses, nil
 }
 
 func (s *service) GetMyTeam(ctx context.Context, managerID string) ([]models.UserResponse, error) {
