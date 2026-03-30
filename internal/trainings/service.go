@@ -371,7 +371,7 @@ func MapTrainingToResponse(t db.Training) models.TrainingResponse {
 		resp.VirtualLink = &t.VirtualLink.String
 	}
 	if t.PreReadUri.Valid {
-		resp.PreReadUri = &t.PreReadUri.String
+		resp.PreReadURI = &t.PreReadUri.String
 	}
 	if t.InstitutePartnerName.Valid {
 		resp.InstitutePartnerName = &t.InstitutePartnerName.String
