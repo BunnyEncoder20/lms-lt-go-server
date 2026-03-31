@@ -600,14 +600,14 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const getAllPublishedCourses = `-- name: GetAllPublishedCourses :many
+const getAllActiveAndUpcomingTrainings = `-- name: GetAllActiveAndUpcomingTrainings :many
 SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
 WHERE start_date > CURRENT_TIMESTAMP OR is_active = 1
-ORDER BY t.start_date ASC
+ORDER BY start_date ASC
 `
 
-func (q *Queries) GetAllPublishedCourses(ctx context.Context) ([]Training, error) {
-	rows, err := q.db.QueryContext(ctx, getAllPublishedCourses)
+func (q *Queries) GetAllActiveAndUpcomingTrainings(ctx context.Context) ([]Training, error) {
+	rows, err := q.db.QueryContext(ctx, getAllActiveAndUpcomingTrainings)
 	if err != nil {
 		return nil, err
 	}
@@ -1553,55 +1553,55 @@ func (q *Queries) UpdateNominationStatus(ctx context.Context, arg UpdateNominati
 
 const updateTraining = `-- name: UpdateTraining :one
 UPDATE trainings SET
-    title = COALESCE(?2, title),
-    description = COALESCE(?3, description),
-    category = COALESCE(?4, category),
-    start_date = COALESCE(?5, start_date),
-    end_date = COALESCE(?6, end_date),
-    location = COALESCE(?7, location),
-    virtual_link = COALESCE(?8, virtual_link),
-    pre_read_uri = COALESCE(?9, pre_read_uri),
-    deadline_days = COALESCE(?10, deadline_days),
-    mapped_category = COALESCE(?11, mapped_category),
+    title = COALESCE(?1, title),
+    description = COALESCE(?2, description),
+    category = COALESCE(NULLIF(?3, ''), category),
+    start_date = COALESCE(?4, start_date),
+    end_date = COALESCE(?5, end_date),
+    location = COALESCE(?6, location),
+    virtual_link = COALESCE(?7, virtual_link),
+    pre_read_uri = COALESCE(?8, pre_read_uri),
+    deadline_days = COALESCE(?9, deadline_days),
+    mapped_category = COALESCE(?10, mapped_category),
     mode_of_delivery
-    = COALESCE(?12, mode_of_delivery),
-    instructor_name = COALESCE(?13, instructor_name),
+    = COALESCE(NULLIF(?11, ''), mode_of_delivery),
+    instructor_name = COALESCE(?12, instructor_name),
     institute_partner_name
-    = COALESCE(?14, institute_partner_name),
+    = COALESCE(?13, institute_partner_name),
     process_owner_name
-    = COALESCE(?15, process_owner_name),
+    = COALESCE(?14, process_owner_name),
     process_owner_email
-    = COALESCE(?16, process_owner_email),
+    = COALESCE(?15, process_owner_email),
     duration_manhours
-    = COALESCE(?17, duration_manhours),
+    = COALESCE(?16, duration_manhours),
     training_mandays
-    = COALESCE(?18, training_mandays),
-    is_active = COALESCE(?19, is_active),
+    = COALESCE(?17, training_mandays),
+    is_active = COALESCE(?18, is_active),
     updated_at = CURRENT_TIMESTAMP
-WHERE id = ?
+WHERE id = ?19
 RETURNING id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at
 `
 
 type UpdateTrainingParams struct {
-	Title                sql.NullString          `json:"title"`
-	Description          sql.NullString          `json:"description"`
-	Category             models.TrainingCategory `json:"category"`
-	StartDate            sql.NullTime            `json:"start_date"`
-	EndDate              sql.NullTime            `json:"end_date"`
-	Location             sql.NullString          `json:"location"`
-	VirtualLink          sql.NullString          `json:"virtual_link"`
-	PreReadUri           sql.NullString          `json:"pre_read_uri"`
-	DeadlineDays         sql.NullInt64           `json:"deadline_days"`
-	MappedCategory       sql.NullString          `json:"mapped_category"`
-	ModeOfDelivery       models.DeliveryMode     `json:"mode_of_delivery"`
-	InstructorName       sql.NullString          `json:"instructor_name"`
-	InstitutePartnerName sql.NullString          `json:"institute_partner_name"`
-	ProcessOwnerName     sql.NullString          `json:"process_owner_name"`
-	ProcessOwnerEmail    sql.NullString          `json:"process_owner_email"`
-	DurationManhours     sql.NullFloat64         `json:"duration_manhours"`
-	TrainingMandays      sql.NullFloat64         `json:"training_mandays"`
-	IsActive             sql.NullBool            `json:"is_active"`
-	ID                   uuid.UUID               `json:"id"`
+	Title                sql.NullString  `json:"title"`
+	Description          sql.NullString  `json:"description"`
+	Category             interface{}     `json:"category"`
+	StartDate            sql.NullTime    `json:"start_date"`
+	EndDate              sql.NullTime    `json:"end_date"`
+	Location             sql.NullString  `json:"location"`
+	VirtualLink          sql.NullString  `json:"virtual_link"`
+	PreReadUri           sql.NullString  `json:"pre_read_uri"`
+	DeadlineDays         sql.NullInt64   `json:"deadline_days"`
+	MappedCategory       sql.NullString  `json:"mapped_category"`
+	ModeOfDelivery       interface{}     `json:"mode_of_delivery"`
+	InstructorName       sql.NullString  `json:"instructor_name"`
+	InstitutePartnerName sql.NullString  `json:"institute_partner_name"`
+	ProcessOwnerName     sql.NullString  `json:"process_owner_name"`
+	ProcessOwnerEmail    sql.NullString  `json:"process_owner_email"`
+	DurationManhours     sql.NullFloat64 `json:"duration_manhours"`
+	TrainingMandays      sql.NullFloat64 `json:"training_mandays"`
+	IsActive             sql.NullBool    `json:"is_active"`
+	ID                   uuid.UUID       `json:"id"`
 }
 
 func (q *Queries) UpdateTraining(ctx context.Context, arg UpdateTrainingParams) (Training, error) {

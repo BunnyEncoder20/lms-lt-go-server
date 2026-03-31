@@ -487,7 +487,7 @@ func (s *service) GetEmployeeDashboard(ctx context.Context, employeeID string) (
 
 // GetAllPublishedCourses retrieves all published/upcoming courses.
 func (s *service) GetAllPublishedCourses(ctx context.Context) ([]models.TrainingResponse, error) {
-	trainings, err := s.db.Read().GetAllPublishedCourses(ctx)
+	trainings, err := s.db.Read().GetAllActiveAndUpcomingTrainings(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get upcoming trainings: %w", err)
 	}
