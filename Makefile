@@ -27,7 +27,7 @@ docker-offline-up:
 	@echo "Building the binary for the docker env..."
 	@CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api/main.go
 	@echo "Starting the offline Docker Compose setup..."
-	@docker compose -p lms-offline -f docker-compose.offline.yml up --build -d
+	@docker compose -f docker-compose.offline.yml up --build -d
 
 # Stop all docker containers (both standard and offline)
 docker-down:

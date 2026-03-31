@@ -134,10 +134,10 @@ SELECT * FROM trainings
 WHERE is_active = 1
 ORDER BY start_date ASC;
 
--- name: GetAllPublishedCourses :many
+-- name: GetAllActiveAndUpcomingTrainings :many
 SELECT * FROM trainings
 WHERE start_date > CURRENT_TIMESTAMP OR is_active = 1
-ORDER BY t.start_date ASC;
+ORDER BY start_date ASC;
 
 -- name: GetTrainingByID :one
 SELECT * FROM trainings
@@ -161,7 +161,7 @@ ORDER BY start_date ASC;
 UPDATE trainings SET
     title = COALESCE(sqlc.narg('title'), title),
     description = COALESCE(sqlc.narg('description'), description),
-    category = COALESCE(sqlc.narg('category'), category),
+    category = COALESCE(NULLIF(sqlc.narg('category'), ''), category),
     start_date = COALESCE(sqlc.narg('start_date'), start_date),
     end_date = COALESCE(sqlc.narg('end_date'), end_date),
     location = COALESCE(sqlc.narg('location'), location),
@@ -170,7 +170,7 @@ UPDATE trainings SET
     deadline_days = COALESCE(sqlc.narg('deadline_days'), deadline_days),
     mapped_category = COALESCE(sqlc.narg('mapped_category'), mapped_category),
     mode_of_delivery
-    = COALESCE(sqlc.narg('mode_of_delivery'), mode_of_delivery),
+    = COALESCE(NULLIF(sqlc.narg('mode_of_delivery'), ''), mode_of_delivery),
     instructor_name = COALESCE(sqlc.narg('instructor_name'), instructor_name),
     institute_partner_name
     = COALESCE(sqlc.narg('institute_partner_name'), institute_partner_name),
@@ -184,7 +184,7 @@ UPDATE trainings SET
     = COALESCE(sqlc.narg('training_mandays'), training_mandays),
     is_active = COALESCE(sqlc.narg('is_active'), is_active),
     updated_at = CURRENT_TIMESTAMP
-WHERE id = ?
+WHERE id = sqlc.arg('id')
 RETURNING *;
 
 -- name: DeleteTraining :exec

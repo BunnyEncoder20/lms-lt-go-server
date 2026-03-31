@@ -66,6 +66,7 @@ func (h *Handler) HandleListUsers(w http.ResponseWriter, r *http.Request) {
 
 	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
+		Message: fmt.Sprintf("retrieved %d users", len(users)),
 		Data:    users,
 	})
 }
