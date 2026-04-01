@@ -3,6 +3,7 @@ package nominations
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -340,6 +341,7 @@ func (h *Handler) HandleGetMyNominations(w http.ResponseWriter, r *http.Request)
 
 	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
+		Message: fmt.Sprintf("retrieved %d nominations", len(nominations)),
 		Data:    nominations,
 	})
 }

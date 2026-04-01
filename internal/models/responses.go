@@ -9,8 +9,8 @@ import (
 
 type JSONResponse struct {
 	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Data    any    `json:"data,omitempty"` // omitempty hides the field if it's nil
+	Message string `json:"message,omitempty"`
+	Data    any    `json:"data,omitempty"`
 }
 
 // WriteJSON Helper func to write json responses
