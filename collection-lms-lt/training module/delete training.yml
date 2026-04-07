@@ -1,0 +1,85 @@
+info:
+  name: delete training
+  type: http
+  seq: 8
+
+http:
+  method: DELETE
+  url: "{{base_url}}/admin/trainings/:id"
+  params:
+    - name: id
+      value: 89b43a12-bcee-4191-8c03-f08fb42319e2
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+          "title": "Advanced Go Microservices 2026",
+          "description": "A deep dive into gRPC, concurrency patterns, and distributed tracing in Golang.",
+          "category": "TECHNICAL",
+          "start_date": "2026-05-01T09:00:00Z",
+          "end_date": "2026-05-05T17:00:00Z",
+          "location": "Conference Room A, Tech Hub",
+          "virtual_link": "https://zoom.us/j/987654321",
+          "pre_read_uri": "https://github.com/org/training-docs/go-adv",
+          "deadline_days": 5,
+          "hr_program_id": "0784f448-2eb3-451b-80b8-ca85e0c344e8",
+          "mapped_category": "Backend Engineering",
+          "mode_of_delivery": "HYBRID",
+          "instructor_name": "Alice Smith",
+          "institute_partner_name": "Cloud Native Academy",
+          "process_owner_name": "John Doe",
+          "process_owner_email": "john.doe@company.com",
+          "duration_manhours": 40.0,
+          "training_mandays": 5.0,
+          "facility_id": "017ee8c7-9424-4a38-bca0-34add327c28a"
+      }
+      //   {
+      //     "title": "Leadership & Conflict Resolution",
+      //     "description": "Developing soft skills for mid-level management to handle team dynamics.",
+      //     "category": "BEHAVIORAL",
+      //     "start_date": "2026-06-15T10:00:00Z",
+      //     "end_date": "2026-06-16T16:00:00Z",
+      //     "location": null,
+      //     "virtual_link": "https://teams.microsoft.com/l/meetup-join/abc123xyz",
+      //     "pre_read_uri": null,
+      //     "deadline_days": 3,
+      //     "hr_program_id": "84dcdf68-e468-452d-afb9-6dcbd41ce473",
+      //     "mapped_category": "Soft Skills",
+      //     "mode_of_delivery": "VIRTUAL_LINK",
+      //     "instructor_name": "Diana Prince",
+      //     "institute_partner_name": "Global Leadership Inst",
+      //     "process_owner_name": "Sarah Connor",
+      //     "process_owner_email": "s.connor@company.com",
+      //     "duration_manhours": 12.5,
+      //     "training_mandays": 1.5,
+      //     "facility_id": "017ee8c7-9424-4a38-bca0-34add327c28a"
+      //   }
+      //   {
+      //     "title": "Cybersecurity Awareness 101",
+      //     "description": "Mandatory e-learning module for all employees regarding phishing and data safety.",
+      //     "category": "TECHNICAL",
+      //     "start_date": "2026-01-01T00:00:00Z",
+      //     "end_date": "2026-12-31T23:59:59Z",
+      //     "location": "Self-Paced",
+      //     "virtual_link": "https://internal-lms.company.com/cyber-101",
+      //     "pre_read_uri": null,
+      //     "deadline_days": 30,
+      //     "hr_program_id": "e27f957d-48c5-40db-9389-bfb11d9b44a7",
+      //     "mapped_category": "Compliance",
+      //     "mode_of_delivery": "E_LEARNING",
+      //     "instructor_name": "Automated System",
+      //     "institute_partner_name": null,
+      //     "process_owner_name": "CISO Office",
+      //     "process_owner_email": "security-team@company.com",
+      //     "duration_manhours": 2.0,
+      //     "training_mandays": 0.25,
+      //     "facility_id": "017ee8c7-9424-4a38-bca0-34add327c28a"
+      //   }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

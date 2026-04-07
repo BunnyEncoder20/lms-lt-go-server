@@ -1,0 +1,25 @@
+info:
+  name: admin update nominations status
+  type: http
+  seq: 11
+
+http:
+  method: PATCH
+  url: "{{base_url}}/admin/nominations/:id/status"
+  params:
+    - name: id
+      value: 5bf5ce51-a514-47e2-8965-1e0aa9726577
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+          "status": "APPROVED"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

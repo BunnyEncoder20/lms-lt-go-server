@@ -1,0 +1,19 @@
+info:
+  name: get training by id
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: "{{base_url}}/trainings/:id"
+  params:
+    - name: id
+      value: 7f8d9282-d5d4-4a0e-9ea9-750121800131
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

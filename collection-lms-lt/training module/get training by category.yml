@@ -1,0 +1,19 @@
+info:
+  name: get training by category
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{base_url}}/trainings/category/:category"
+  params:
+    - name: category
+      value: BEHAVIORAL
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

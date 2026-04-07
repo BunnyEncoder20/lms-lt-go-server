@@ -1,0 +1,19 @@
+info:
+  name: hard delete user
+  type: http
+  seq: 7
+
+http:
+  method: DELETE
+  url: "{{base_url}}/admin/users/permanent/:id"
+  params:
+    - name: id
+      value: fd3b9b73-f9bf-4acf-9e69-3beab201265f
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

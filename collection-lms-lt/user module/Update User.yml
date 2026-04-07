@@ -1,0 +1,25 @@
+info:
+  name: Update User
+  type: http
+  seq: 5
+
+http:
+  method: PATCH
+  url: "{{base_url}}/admin/users/:id/status"
+  params:
+    - name: id
+      value: 3ee57473-98de-4d8e-a052-3c375d67053a
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+          "IsActive": true   
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,21 @@
+info:
+  name: respond to nominations (by manager)
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{base_url}}/nominations/self"
+  body:
+    type: json
+    data: |-
+      {
+          "training_id": "6be02045-3909-4a9f-9865-4b63c56727a5"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

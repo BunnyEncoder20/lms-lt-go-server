@@ -1,0 +1,26 @@
+info:
+  name: nominate employee(s) for training (by manager)
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{base_url}}/nominations"
+  body:
+    type: json
+    data: |-
+      {
+          "training_id": "6be02045-3909-4a9f-9865-4b63c56727a5",
+          "user_ids": [
+              "6acb7baa-5f73-449b-8b3a-34121f14094f",
+              "13b9a984-e7e1-486c-8682-24b351fcb25d",
+              "3c73057a-1d8b-4459-8efc-58080f434d88"
+          ]
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

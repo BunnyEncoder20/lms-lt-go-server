@@ -1,0 +1,25 @@
+info:
+  name: manager approve/reject for self nomination by emp
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{base_url}}/nominations/:id/manager-respond"
+  params:
+    - name: id
+      value: f72aaa2e-e5bd-4c7e-94b0-9b2db454f764
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+          "status": "APPROVED"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

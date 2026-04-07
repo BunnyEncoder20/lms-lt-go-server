@@ -1,0 +1,108 @@
+info:
+  name: Create Users
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{base_url}}/admin/users"
+  body:
+    type: json
+    data: |-
+      [
+        {
+          "pes_number": "PES10001",
+          "password": "hashed_password_123",
+          "first_name": "Alice",
+          "last_name": "Smith",
+          "email": "alice.smith@company.com",
+          "role": "EMPLOYEE",
+          "cluster": "Digital Transformation",
+          "title": "Senior Associate",
+          "gender": "F",
+          "band": "B2",
+          "grade": "G4",
+          "ic": "IC1",
+          "sbg": "Tech Solutions",
+          "bu": "Cloud Services",
+          "segment": "Enterprise",
+          "department": "Engineering",
+          "base_location": "New York",
+          "is_id": "e83e0a1b-a580-41d6-96ef-79bc3b476781",
+          "ns_id": null,
+          "dh_id": "e0959662-e6d1-4c0d-9676-59c119e47fda"
+        },
+        {
+          "pes_number": "PES10002",
+          "password": "secure_pass_456",
+          "first_name": "Bob",
+          "last_name": "Johnson",
+          "email": "bob.johnson@company.com",
+          "role": "MANAGER",
+          "cluster": null,
+          "title": "Lead Consultant",
+          "gender": "M",
+          "band": "B3",
+          "grade": "G5",
+          "ic": "M1",
+          "sbg": "Global Sales",
+          "bu": "FinTech",
+          "segment": "Retail",
+          "department": "Product",
+          "base_location": "London",
+          "is_id": null,
+          "ns_id": "017ee8c7-9424-4a38-bca0-34add327c28a",
+          "dh_id": "e0959662-e6d1-4c0d-9676-59c119e47fda"
+        },
+        {
+          "pes_number": "PES10003",
+          "password": "pwd_validation_789",
+          "first_name": "Charlie",
+          "last_name": "Davis",
+          "email": "charlie.davis@company.com",
+          "role": "EMPLOYEE",
+          "cluster": "Analytics Hub",
+          "title": "Specialist",
+          "gender": "M",
+          "band": "B1",
+          "grade": "G3",
+          "ic": "IC1",
+          "sbg": "Tech Solutions",
+          "bu": "Data Intelligence",
+          "segment": "Enterprise",
+          "department": "Analytics",
+          "base_location": "Bangalore",
+          "is_id": "e83e0a1b-a580-41d6-96ef-79bc3b476781",
+          "ns_id": "017ee8c7-9424-4a38-bca0-34add327c28a",
+          "dh_id": null
+        },
+        {
+          "pes_number": "PES10004",
+          "password": "admin_access_2026",
+          "first_name": "Diana",
+          "last_name": "Prince",
+          "email": "diana.prince@company.com",
+          "role": "ADMIN",
+          "cluster": "Corporate Ops",
+          "title": "Director",
+          "gender": "F",
+          "band": "B5",
+          "grade": "G7",
+          "ic": "M2",
+          "sbg": "People & Culture",
+          "bu": "Human Resources",
+          "segment": "Shared Services",
+          "department": "HR",
+          "base_location": "Singapore",
+          "is_id": "e83e0a1b-a580-41d6-96ef-79bc3b476781",
+          "ns_id": "017ee8c7-9424-4a38-bca0-34add327c28a",
+          "dh_id": "e0959662-e6d1-4c0d-9676-59c119e47fda"
+        }
+      ]
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
