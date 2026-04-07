@@ -600,6 +600,60 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const getAdminKpis = `-- name: GetAdminKpis :one
+WITH training_counts AS (
+    SELECT COUNT(*) as total_trainings
+    FROM trainings
+    WHERE is_active = 1
+),
+nomination_stats AS (
+    SELECT
+        COUNT(*) FILTER (WHERE status IN ('APPROVED', 'COMPLETED', 'ATTENDED'))
+            AS total_participants,
+        COUNT(*) FILTER (WHERE status = 'COMPLETED') AS completed_count,
+        COUNT(*) FILTER (WHERE status IN ('APPROVED', 'COMPLETED', 'ATTENDED'))
+            AS enrolled_count
+    FROM nominations
+),
+mandays_calc AS (
+    SELECT
+        COALESCE(SUM((julianday(t.end_date) - julianday(t.start_date) + 1)), 0.0)
+            AS total_man_days
+    FROM trainings t
+    JOIN nominations n ON t.id = n.training_id
+    WHERE t.is_active = 1 AND n.status IN ('APPROVED', 'COMPLETED', 'ATTENDED')
+)
+SELECT
+    tc.total_trainings,
+    ns.total_participants,
+    ns.completed_count,
+    ns.enrolled_count,
+    mc.total_man_days
+FROM training_counts tc, nomination_stats ns, mandays_calc mc
+`
+
+type GetAdminKpisRow struct {
+	TotalTrainings    int64       `json:"total_trainings"`
+	TotalParticipants int64       `json:"total_participants"`
+	CompletedCount    int64       `json:"completed_count"`
+	EnrolledCount     int64       `json:"enrolled_count"`
+	TotalManDays      interface{} `json:"total_man_days"`
+}
+
+// ADMIN STATS
+func (q *Queries) GetAdminKpis(ctx context.Context) (GetAdminKpisRow, error) {
+	row := q.db.QueryRowContext(ctx, getAdminKpis)
+	var i GetAdminKpisRow
+	err := row.Scan(
+		&i.TotalTrainings,
+		&i.TotalParticipants,
+		&i.CompletedCount,
+		&i.EnrolledCount,
+		&i.TotalManDays,
+	)
+	return i, err
+}
+
 const getAllActiveAndUpcomingTrainings = `-- name: GetAllActiveAndUpcomingTrainings :many
 SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
 WHERE start_date > CURRENT_TIMESTAMP OR is_active = 1
@@ -640,6 +694,96 @@ func (q *Queries) GetAllActiveAndUpcomingTrainings(ctx context.Context) ([]Train
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getCategoryDistribution = `-- name: GetCategoryDistribution :many
+SELECT
+    t.category AS name,
+    COUNT(n.id) AS value
+FROM nominations n
+JOIN trainings t ON n.training_id = t.id
+WHERE n.status IN ('APPROVED', 'COMPLETED', 'ATTENDED')
+GROUP BY t.category
+`
+
+type GetCategoryDistributionRow struct {
+	Name  models.TrainingCategory `json:"name"`
+	Value int64                   `json:"value"`
+}
+
+func (q *Queries) GetCategoryDistribution(ctx context.Context) ([]GetCategoryDistributionRow, error) {
+	rows, err := q.db.QueryContext(ctx, getCategoryDistribution)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetCategoryDistributionRow
+	for rows.Next() {
+		var i GetCategoryDistributionRow
+		if err := rows.Scan(&i.Name, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getClusterStats = `-- name: GetClusterStats :many
+SELECT
+    COALESCE(u.cluster, 'Unassigned') AS cluster,
+    COUNT(u.id) AS total_employees,
+    COUNT(DISTINCT CASE WHEN n.id IS NOT NULL THEN u.id END) AS trained,
+    (
+        COUNT(u.id) - COUNT(DISTINCT CASE WHEN n.id IS NOT NULL THEN u.id END)
+    ) AS untrained
+FROM users u
+LEFT JOIN
+    nominations n
+    ON
+        u.id = n.user_id AND n.status IN ('APPROVED', 'COMPLETED', 'ATTENDED')
+WHERE u.is_active = 1 AND u.role != 'ADMIN'
+GROUP BY u.cluster
+`
+
+type GetClusterStatsRow struct {
+	Cluster        string      `json:"cluster"`
+	TotalEmployees int64       `json:"total_employees"`
+	Trained        int64       `json:"trained"`
+	Untrained      interface{} `json:"untrained"`
+}
+
+func (q *Queries) GetClusterStats(ctx context.Context) ([]GetClusterStatsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getClusterStats)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetClusterStatsRow
+	for rows.Next() {
+		var i GetClusterStatsRow
+		if err := rows.Scan(
+			&i.Cluster,
+			&i.TotalEmployees,
+			&i.Trained,
+			&i.Untrained,
 		); err != nil {
 			return nil, err
 		}
@@ -733,6 +877,54 @@ func (q *Queries) GetCourseWithAuthor(ctx context.Context, id uuid.UUID) (GetCou
 		&i.AuthorLastName,
 	)
 	return i, err
+}
+
+const getMonthlyStats = `-- name: GetMonthlyStats :many
+SELECT
+    strftime('%Y-%m', t.start_date) AS month_key,
+    strftime('%b %y', t.start_date) AS month_label,
+    COUNT(n.id) AS participant_count,
+    COUNT(DISTINCT t.id) AS training_count
+FROM nominations n
+JOIN trainings t ON n.training_id = t.id
+WHERE n.status IN ('APPROVED', 'COMPLETED', 'ATTENDED')
+GROUP BY month_key
+ORDER BY month_key ASC
+`
+
+type GetMonthlyStatsRow struct {
+	MonthKey         interface{} `json:"month_key"`
+	MonthLabel       interface{} `json:"month_label"`
+	ParticipantCount int64       `json:"participant_count"`
+	TrainingCount    int64       `json:"training_count"`
+}
+
+func (q *Queries) GetMonthlyStats(ctx context.Context) ([]GetMonthlyStatsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getMonthlyStats)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetMonthlyStatsRow
+	for rows.Next() {
+		var i GetMonthlyStatsRow
+		if err := rows.Scan(
+			&i.MonthKey,
+			&i.MonthLabel,
+			&i.ParticipantCount,
+			&i.TrainingCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getNominationByID = `-- name: GetNominationByID :one

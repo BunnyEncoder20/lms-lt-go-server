@@ -439,3 +439,72 @@ SELECT l.* FROM lessons l
 JOIN course_modules m ON l.module_id = m.id
 WHERE m.course_id = ?
 ORDER BY m.sequence_order, l.sequence_order;
+
+-- ADMIN STATS
+-- name: GetAdminKpis :one
+WITH training_counts AS (
+    SELECT COUNT(*) as total_trainings
+    FROM trainings
+    WHERE is_active = 1
+),
+nomination_stats AS (
+    SELECT
+        COUNT(*) FILTER (WHERE status IN ('APPROVED', 'COMPLETED', 'ATTENDED'))
+            AS total_participants,
+        COUNT(*) FILTER (WHERE status = 'COMPLETED') AS completed_count,
+        COUNT(*) FILTER (WHERE status IN ('APPROVED', 'COMPLETED', 'ATTENDED'))
+            AS enrolled_count
+    FROM nominations
+),
+mandays_calc AS (
+    SELECT
+        COALESCE(SUM((julianday(t.end_date) - julianday(t.start_date) + 1)), 0.0)
+            AS total_man_days
+    FROM trainings t
+    JOIN nominations n ON t.id = n.training_id
+    WHERE t.is_active = 1 AND n.status IN ('APPROVED', 'COMPLETED', 'ATTENDED')
+)
+SELECT
+    tc.total_trainings,
+    ns.total_participants,
+    ns.completed_count,
+    ns.enrolled_count,
+    mc.total_man_days
+FROM training_counts tc, nomination_stats ns, mandays_calc mc;
+
+-- name: GetMonthlyStats :many
+SELECT
+    strftime('%Y-%m', t.start_date) AS month_key,
+    strftime('%b %y', t.start_date) AS month_label,
+    COUNT(n.id) AS participant_count,
+    COUNT(DISTINCT t.id) AS training_count
+FROM nominations n
+JOIN trainings t ON n.training_id = t.id
+WHERE n.status IN ('APPROVED', 'COMPLETED', 'ATTENDED')
+GROUP BY month_key
+ORDER BY month_key ASC;
+
+-- name: GetCategoryDistribution :many
+SELECT
+    t.category AS name,
+    COUNT(n.id) AS value
+FROM nominations n
+JOIN trainings t ON n.training_id = t.id
+WHERE n.status IN ('APPROVED', 'COMPLETED', 'ATTENDED')
+GROUP BY t.category;
+
+-- name: GetClusterStats :many
+SELECT
+    COALESCE(u.cluster, 'Unassigned') AS cluster,
+    COUNT(u.id) AS total_employees,
+    COUNT(DISTINCT CASE WHEN n.id IS NOT NULL THEN u.id END) AS trained,
+    (
+        COUNT(u.id) - COUNT(DISTINCT CASE WHEN n.id IS NOT NULL THEN u.id END)
+    ) AS untrained
+FROM users u
+LEFT JOIN
+    nominations n
+    ON
+        u.id = n.user_id AND n.status IN ('APPROVED', 'COMPLETED', 'ATTENDED')
+WHERE u.is_active = 1 AND u.role != 'ADMIN'
+GROUP BY u.cluster;
