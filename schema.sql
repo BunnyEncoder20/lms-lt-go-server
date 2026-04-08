@@ -85,9 +85,9 @@ CREATE TABLE IF NOT EXISTS trainings (
     max_capacity INTEGER,
     target_clusters TEXT, -- Store as JSON array string
     prerequisites_url TEXT,
-    venue_cost REAL DEFAULT 0.0,
-    professional_fees REAL DEFAULT 0.0,
-    stationary_cost REAL DEFAULT 0.0,
+    venue_cost INTEGER DEFAULT 0,
+    professional_fees INTEGER DEFAULT 0,
+    stationary_cost INTEGER DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'DRAFT' CHECK (
         status IN ('DRAFT', 'SCHEDULED', 'PUBLISHED')
     ),
@@ -178,13 +178,13 @@ CREATE TABLE IF NOT EXISTS nominations (
     -- Add HR completion tracking
     hr_completion_status TEXT,
 
-    -- Cost tracking (using real for floating point currency)
-    prof_fees REAL DEFAULT 0.0,
-    venue_cost REAL DEFAULT 0.0,
-    other_cost REAL DEFAULT 0.0,
-    non_tems_travel REAL DEFAULT 0.0,
-    non_tems_accommodation REAL DEFAULT 0.0,
-    total_cost REAL DEFAULT 0.0,
+    -- Cost tracking (using integer for cents/paise)
+    prof_fees INTEGER DEFAULT 0,
+    venue_cost INTEGER DEFAULT 0,
+    other_cost INTEGER DEFAULT 0,
+    non_tems_travel INTEGER DEFAULT 0,
+    non_tems_accommodation INTEGER DEFAULT 0,
+    total_cost INTEGER DEFAULT 0,
 
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -314,7 +314,7 @@ CREATE TABLE IF NOT EXISTS course_assignments (
     status TEXT NOT NULL DEFAULT 'NOT_STARTED' CHECK (
         status IN ('NOT_STARTED', 'IN_PROGRESS', 'COMPLETED')
     ),
-    progress_percentage FLOAT NOT NULL DEFAULT 0,
+    progress_percentage REAL NOT NULL DEFAULT 0,
     course_version INTEGER NOT NULL DEFAULT 1,
     due_date DATETIME,
     enrolled_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -386,7 +386,7 @@ CREATE TABLE IF NOT EXISTS historical_training_records (
     month_key TEXT NOT NULL,
     man_days REAL,
     man_hours REAL,
-    total_cost_inr REAL,
+    total_cost_inr INTEGER,
     source_file TEXT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
