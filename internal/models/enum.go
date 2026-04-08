@@ -14,18 +14,27 @@ const (
 type NominationStatus string
 
 const (
-	NomPending   NominationStatus = "PENDING_MANAGER"
-	NomApproved  NominationStatus = "APPROVED"
-	NomCompleted NominationStatus = "COMPLETED"
-	NomDeclined  NominationStatus = "DECLINED"
-	NomRejected  NominationStatus = "REJECTED"
-	NomAttended  NominationStatus = "ATTENDED"
+	NomPendingManagerAssignment NominationStatus = "PENDING_MANAGER_ASSIGNMENT"
+	NomPendingEmployeeApproval   NominationStatus = "PENDING_EMPLOYEE_APPROVAL"
+	NomEnrolled                  NominationStatus = "ENROLLED"
+	NomPendingManagerApproval    NominationStatus = "PENDING_MANAGER_APPROVAL"
+	NomDeclined                  NominationStatus = "DECLINED"
+	NomRejected                  NominationStatus = "REJECTED"
+	NomCompleted                 NominationStatus = "COMPLETED"
+	NomAttended                  NominationStatus = "ATTENDED"
 )
 
 // IsValidNominationStatus Helper func in models package
 func IsValidNominationStatus(status NominationStatus) bool {
 	switch status {
-	case NomPending, NomApproved, NomCompleted, NomDeclined, NomRejected, NomAttended:
+	case NomPendingManagerAssignment,
+		NomPendingEmployeeApproval,
+		NomEnrolled,
+		NomPendingManagerApproval,
+		NomDeclined,
+		NomRejected,
+		NomCompleted,
+		NomAttended:
 		return true
 	default:
 		return false
@@ -46,6 +55,9 @@ type TrainingCategory string
 
 const (
 	TrainingTechnical  TrainingCategory = "TECHNICAL"
+	TrainingITDigital  TrainingCategory = "IT_DIGITAL"
+	TrainingQuality    TrainingCategory = "QUALITY"
+	TrainingSafety     TrainingCategory = "SAFETY"
 	TrainingBehavioral TrainingCategory = "BEHAVIORAL"
 )
 
@@ -53,11 +65,12 @@ const (
 type LessonContentType string
 
 const (
-	LessonVideo    LessonContentType = "VIDEO"
-	LessonAudio    LessonContentType = "AUDIO"
-	LessonPdf      LessonContentType = "PDF"
-	LessonImage    LessonContentType = "IMAGE"
-	LessonRichText LessonContentType = "RICH_TEXT"
+	LessonVideo        LessonContentType = "VIDEO"
+	LessonAudio        LessonContentType = "AUDIO"
+	LessonPdf          LessonContentType = "PDF"
+	LessonImage        LessonContentType = "IMAGE"
+	LessonRichText     LessonContentType = "RICH_TEXT"
+	LessonPresentation LessonContentType = "PRESENTATION"
 )
 
 // CourseAssignmentStatus represents the status of a course assignment in the system.
@@ -78,12 +91,38 @@ const (
 	EventCancelled CalendarPlanStatus = "CANCELLED"
 )
 
-// DeliveryMode enum represents the mdoe of delivery of the training
-type DeliveryMode string
+// TrainingFormat enum represents the format of the training
+type TrainingFormat string
 
 const (
-	InPerson    DeliveryMode = "IN_PERSON"
-	VirtualLink DeliveryMode = "VIRTUAL_LINK"
-	Hybrid      DeliveryMode = "HYBRID"
-	Elearning   DeliveryMode = "E_LEARNING"
+	FormatInPerson TrainingFormat = "IN_PERSON"
+	FormatVirtual  TrainingFormat = "VIRTUAL"
+	FormatHybrid   TrainingFormat = "HYBRID"
+)
+
+// TrainingStatus enum represents the lifecycle status of a training
+type TrainingStatus string
+
+const (
+	TrainingDraft     TrainingStatus = "DRAFT"
+	TrainingScheduled TrainingStatus = "SCHEDULED"
+	TrainingPublished TrainingStatus = "PUBLISHED"
+)
+
+// AttendanceRequestStatus enum represents the status of an attendance request
+type AttendanceRequestStatus string
+
+const (
+	AttendanceSent      AttendanceRequestStatus = "SENT"
+	AttendanceConfirmed AttendanceRequestStatus = "CONFIRMED"
+	AttendanceExpired   AttendanceRequestStatus = "EXPIRED"
+	AttendanceVoid      AttendanceRequestStatus = "VOID"
+)
+
+// AttendanceEntityType enum represents the entity type for attendance dispatches
+type AttendanceEntityType string
+
+const (
+	EntityTraining AttendanceEntityType = "TRAINING"
+	EntityCourse   AttendanceEntityType = "COURSE"
 )
