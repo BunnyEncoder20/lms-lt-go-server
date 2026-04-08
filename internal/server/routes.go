@@ -108,9 +108,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	// Admin Endpoints
 	mux.Handle("GET /admin/kpis", applyMiddleware(http.HandlerFunc(adminHandler.HandleGetKpis), adminOnlyMiddlewares...))
-	mux.Handle("GET /admin/monthlystats", applyMiddleware(http.HandlerFunc(adminHandler.HandleGetMonthlyStats), adminOnlyMiddlewares...))
-	mux.Handle("GET /admin/categorydistribution", applyMiddleware(http.HandlerFunc(adminHandler.HandleGetCategoryDistribution), adminOnlyMiddlewares...))
-	mux.Handle("GET /admin/clusterstats", applyMiddleware(http.HandlerFunc(adminHandler.HandleGetClusterStats), adminOnlyMiddlewares...))
+	mux.Handle("GET /admin/monthly-stats", applyMiddleware(http.HandlerFunc(adminHandler.HandleGetMonthlyStats), adminOnlyMiddlewares...))
+	mux.Handle("GET /admin/category-distribution", applyMiddleware(http.HandlerFunc(adminHandler.HandleGetCategoryDistribution), adminOnlyMiddlewares...))
+	mux.Handle("GET /admin/cluster-stats", applyMiddleware(http.HandlerFunc(adminHandler.HandleGetClusterStats), adminOnlyMiddlewares...))
 
 	// Global Middlewares - these apply to all routes and are added at the end to wrap everything
 	globalMiddlewares := []Middleware{
