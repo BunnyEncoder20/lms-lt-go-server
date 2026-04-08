@@ -302,7 +302,7 @@ ON CONFLICT (user_id, training_id) DO UPDATE SET
     updated_at = CURRENT_TIMESTAMP
 RETURNING *;
 
--- COURSE
+-- COURSE MODULE
 -- name: CreateCourse :one
 INSERT INTO courses (
     id, title, description, author_id, cover_image_uri, status,
@@ -348,7 +348,6 @@ JOIN users u ON c.author_id = u.id
 WHERE c.id = ?
 LIMIT 1;
 
--- COURSE MODULE
 -- name: CreateCourseModule :one
 INSERT INTO course_modules (
     id, title, course_id, description, sequence_order
@@ -442,11 +441,13 @@ ORDER BY m.sequence_order, l.sequence_order;
 
 -- ADMIN STATS
 -- name: GetAdminKpis :one
-WITH training_counts AS (
-    SELECT COUNT(*) as total_trainings
+WITH
+training_counts AS (
+    SELECT COUNT(*) AS total_trainings
     FROM trainings
     WHERE is_active = 1
 ),
+
 nomination_stats AS (
     SELECT
         COUNT(*) FILTER (WHERE status IN ('APPROVED', 'COMPLETED', 'ATTENDED'))
@@ -456,14 +457,18 @@ nomination_stats AS (
             AS enrolled_count
     FROM nominations
 ),
+
 mandays_calc AS (
     SELECT
-        COALESCE(SUM((julianday(t.end_date) - julianday(t.start_date) + 1)), 0.0)
+        COALESCE(
+            SUM((JULIANDAY(t.end_date) - JULIANDAY(t.start_date) + 1)), 0.0
+        )
             AS total_man_days
     FROM trainings t
     JOIN nominations n ON t.id = n.training_id
     WHERE t.is_active = 1 AND n.status IN ('APPROVED', 'COMPLETED', 'ATTENDED')
 )
+
 SELECT
     tc.total_trainings,
     ns.total_participants,
@@ -474,8 +479,8 @@ FROM training_counts tc, nomination_stats ns, mandays_calc mc;
 
 -- name: GetMonthlyStats :many
 SELECT
-    strftime('%Y-%m', t.start_date) AS month_key,
-    strftime('%b %y', t.start_date) AS month_label,
+    STRFTIME('%Y-%m', t.start_date) AS month_key,
+    STRFTIME('%b %y', t.start_date) AS month_label,
     COUNT(n.id) AS participant_count,
     COUNT(DISTINCT t.id) AS training_count
 FROM nominations n

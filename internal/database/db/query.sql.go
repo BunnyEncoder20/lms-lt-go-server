@@ -151,7 +151,7 @@ type CreateCourseParams struct {
 	PublishedAt        sql.NullTime            `json:"published_at"`
 }
 
-// COURSE
+// COURSE MODULE
 func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Course, error) {
 	row := q.db.QueryRowContext(ctx, createCourse,
 		arg.ID,
@@ -253,7 +253,6 @@ type CreateCourseModuleParams struct {
 	SequenceOrder int64          `json:"sequence_order"`
 }
 
-// COURSE MODULE
 func (q *Queries) CreateCourseModule(ctx context.Context, arg CreateCourseModuleParams) (CourseModule, error) {
 	row := q.db.QueryRowContext(ctx, createCourseModule,
 		arg.ID,
@@ -601,11 +600,13 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 }
 
 const getAdminKpis = `-- name: GetAdminKpis :one
-WITH training_counts AS (
-    SELECT COUNT(*) as total_trainings
+WITH
+training_counts AS (
+    SELECT COUNT(*) AS total_trainings
     FROM trainings
     WHERE is_active = 1
 ),
+
 nomination_stats AS (
     SELECT
         COUNT(*) FILTER (WHERE status IN ('APPROVED', 'COMPLETED', 'ATTENDED'))
@@ -615,14 +616,18 @@ nomination_stats AS (
             AS enrolled_count
     FROM nominations
 ),
+
 mandays_calc AS (
     SELECT
-        COALESCE(SUM((julianday(t.end_date) - julianday(t.start_date) + 1)), 0.0)
+        COALESCE(
+            SUM((JULIANDAY(t.end_date) - JULIANDAY(t.start_date) + 1)), 0.0
+        )
             AS total_man_days
     FROM trainings t
     JOIN nominations n ON t.id = n.training_id
     WHERE t.is_active = 1 AND n.status IN ('APPROVED', 'COMPLETED', 'ATTENDED')
 )
+
 SELECT
     tc.total_trainings,
     ns.total_participants,
@@ -881,8 +886,8 @@ func (q *Queries) GetCourseWithAuthor(ctx context.Context, id uuid.UUID) (GetCou
 
 const getMonthlyStats = `-- name: GetMonthlyStats :many
 SELECT
-    strftime('%Y-%m', t.start_date) AS month_key,
-    strftime('%b %y', t.start_date) AS month_label,
+    STRFTIME('%Y-%m', t.start_date) AS month_key,
+    STRFTIME('%b %y', t.start_date) AS month_label,
     COUNT(n.id) AS participant_count,
     COUNT(DISTINCT t.id) AS training_count
 FROM nominations n

@@ -123,3 +123,30 @@ type EmployeeDashboardResponse struct {
 	CompletedNominations int64 `json:"completed_nominations"`
 	AvailableCourses     int64 `json:"available_courses"`
 }
+
+type AdminKpisResponse struct {
+	TotalTrainings    int64   `json:"total_trainings"`
+	TotalParticipants int64   `json:"total_participants"`
+	CompletedCount    int64   `json:"completed_count"`
+	EnrolledCount     int64   `json:"enrolled_count"`
+	TotalManDays      float64 `json:"total_mandays"`
+}
+
+type MonthlyStatsResponse struct {
+	MonthKey     string `json:"month_key"`
+	MonthLabel   string `json:"month_label"`
+	Participants int64  `json:"participants"`
+	Trainings    int64  `json:"trainings"`
+}
+
+type CategoryDistributionResponse struct {
+	Name  TrainingCategory `json:"training_name"`
+	Value int64            `json:"value"`
+}
+
+type ClusterStatsResponse struct {
+	Cluster        string `json:"cluster"`
+	TotalEmployees int64  `json:"total_employees"`
+	Trained        int64  `json:"trained"`
+	Untrained      int64  `json:"untrained"`
+}

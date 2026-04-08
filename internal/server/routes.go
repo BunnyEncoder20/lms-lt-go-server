@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"go-server/internal/admin"
 	"go-server/internal/auth"
 	"go-server/internal/middleware"
 	"go-server/internal/models"
@@ -41,6 +42,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	nominationsService := nominations.NewService(s.db)
 	nominationsHandler := nominations.NewHandler(nominationsService, s.log)
+
+	adminService := admin.NewService(s.db)
+	adminHandler := admin.NewHandler(adminService, s.log)
 
 	// Middleware Stacks
 	// grouping middlewares into slices makes applying them to routes incredibly easy and clean.
@@ -101,6 +105,12 @@ func (s *Server) RegisterRoutes() http.Handler {
 	// -- Admin only routes
 	mux.Handle("GET /admin/nominations", applyMiddleware(http.HandlerFunc(nominationsHandler.HandleGetAllNominations), adminOnlyMiddlewares...))
 	mux.Handle("PATCH /admin/nominations/{id}/status", applyMiddleware(http.HandlerFunc(nominationsHandler.HandleUpdateNominationStatus), adminOnlyMiddlewares...))
+
+	// Admin Endpoints
+	mux.Handle("GET /admin/kpis", applyMiddleware(http.HandlerFunc(adminHandler.HandleGetKpis), adminOnlyMiddlewares...))
+	mux.Handle("GET /admin/monthlystats", applyMiddleware(http.HandlerFunc(adminHandler.HandleGetMonthlyStats), adminOnlyMiddlewares...))
+	mux.Handle("GET /admin/categorydistribution", applyMiddleware(http.HandlerFunc(adminHandler.HandleGetCategoryDistribution), adminOnlyMiddlewares...))
+	mux.Handle("GET /admin/clusterstats", applyMiddleware(http.HandlerFunc(adminHandler.HandleGetClusterStats), adminOnlyMiddlewares...))
 
 	// Global Middlewares - these apply to all routes and are added at the end to wrap everything
 	globalMiddlewares := []Middleware{
