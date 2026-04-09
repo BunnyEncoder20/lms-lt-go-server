@@ -1,10 +1,13 @@
 package admin
 
 import (
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 
 	"go-server/internal/models"
+	"go-server/internal/utils"
 )
 
 type Handler struct {
@@ -84,5 +87,34 @@ func (h *Handler) HandleGetClusterStats(w http.ResponseWriter, r *http.Request) 
 	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Data:    data,
+	})
+}
+
+func (h *Handler) HandleImportHistory(w http.ResponseWriter, r *http.Request) {
+	// 1. Parse the multipart form (Limit to 10MB in memory, rest goes to tmp filies)
+	err := r.ParseMultipartForm(10 << 20)
+	if err != nil {
+		utils.HandleError(w, r, h.log, fmt.Errorf("faild to parse form: %w", err))
+	}
+
+	// 2. Grab the file by the form key
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		utils.HandleError(w, r, h.log, errors.New("file is required"))
+		return
+	}
+	defer file.Close() // WARN: Critical: prevent memory leaks
+
+	// 3. Pass the raw file directly to the service
+	res, err := h.svc.ImportHistoricalWorkbook(r.Context(), file, header.Filename)
+	if err != nil {
+		utils.HandleError(w, r, h.log, err)
+		return
+	}
+
+	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+		Success: true,
+		Message: "historial training report imported successfully",
+		Data:    res,
 	})
 }

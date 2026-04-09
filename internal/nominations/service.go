@@ -87,17 +87,12 @@ func (s *service) NominateEmployees(ctx context.Context, managerID string, req m
 				return fmt.Errorf("invalid user ID format: %w", err)
 			}
 
-			// BUG: if the user is already nominated for the same training, this will return an error and rollback the entire transaction, meaning none of the users will be nominated. We should ideally skip this user and continue with the rest instead of failing the entire batch. To do this, we can catch the unique constraint violation error and continue instead of returning an error.
-			// Either returna  partial success response
-			// Or at least log the skipped nominations for debugging at least
-			// Or return en error if any nomination fails
-
-			// Create nomination with PENDING_MANAGER status
+			// Create nomination with PENDING_EMPLOYEE_APPROVAL status
 			params := db.CreateNominationParams{
 				ID:            uuid.New(),
-				Status:        models.NomPending,
+				Status:        models.NomPendingEmployeeApproval,
 				UserID:        parsedUserID,
-				TrainingID:    parsedTrainingID,
+				TrainingID:    uuid.NullUUID{UUID: parsedTrainingID, Valid: true},
 				NominatedByID: parsedManagerID,
 			}
 
@@ -156,9 +151,9 @@ func (s *service) SelfNomination(ctx context.Context, userID string, req models.
 
 		params := db.CreateNominationParams{
 			ID:            uuid.New(),
-			Status:        models.NomPending,
+			Status:        models.NomPendingManagerApproval,
 			UserID:        parsedUserID,
-			TrainingID:    parsedTrainingID,
+			TrainingID:    uuid.NullUUID{UUID: parsedTrainingID, Valid: true},
 			NominatedByID: user.IsID.UUID,
 		}
 
@@ -207,7 +202,7 @@ func (s *service) RespondToNomination(ctx context.Context, employeeID string, no
 		var newStatus models.NominationStatus
 		switch req.Status {
 		case "ACCEPTED":
-			newStatus = models.NomApproved
+			newStatus = models.NomEnrolled
 		case "DECLINED":
 			newStatus = models.NomDeclined
 		default:
@@ -245,8 +240,8 @@ func (s *service) RespondToSelfNomination(ctx context.Context, managerID string,
 		return models.NominationResponse{}, errors.New("invalid nomination ID format")
 	}
 
-	if status != models.NomApproved && status != models.NomRejected {
-		return models.NominationResponse{}, errors.New("invalid status: must be APPROVED or REJECTED")
+	if status != models.NomEnrolled && status != models.NomRejected {
+		return models.NominationResponse{}, errors.New("invalid status: must be ENROLLED or REJECTED")
 	}
 
 	var updatedNomination db.Nomination
@@ -265,7 +260,7 @@ func (s *service) RespondToSelfNomination(ctx context.Context, managerID string,
 			return errors.New("unauthorized: can only respond to nominations from your team")
 		}
 
-		if nomination.Status != models.NomPending {
+		if nomination.Status != models.NomPendingManagerApproval {
 			return errors.New("can only respond to nominations that are in PENDING status. Current status: " + string(nomination.Status))
 		}
 
@@ -506,32 +501,41 @@ func MapNominationToResponse(n db.Nomination) models.NominationResponse {
 		ID:            n.ID.String(),
 		Status:        n.Status,
 		UserID:        n.UserID.String(),
-		TrainingID:    n.TrainingID.String(),
 		NominatedByID: n.NominatedByID.String(),
 		CreatedAt:     n.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:     n.UpdatedAt.Format(time.RFC3339),
+	}
+
+	if n.TrainingID.Valid {
+		resp.TrainingID = n.TrainingID.UUID.String()
 	}
 
 	if n.HrCompletionStatus.Valid {
 		resp.HrCompletionStatus = &n.HrCompletionStatus.String
 	}
 	if n.ProfFees.Valid {
-		resp.ProfFees = &n.ProfFees.Float64
+		val := n.ProfFees.Int64
+		resp.ProfFees = &val
 	}
 	if n.VenueCost.Valid {
-		resp.VenueCost = &n.VenueCost.Float64
+		val := n.VenueCost.Int64
+		resp.VenueCost = &val
 	}
 	if n.OtherCost.Valid {
-		resp.OtherCost = &n.OtherCost.Float64
+		val := n.OtherCost.Int64
+		resp.OtherCost = &val
 	}
 	if n.NonTemsTravel.Valid {
-		resp.NonTemsTravel = &n.NonTemsTravel.Float64
+		val := n.NonTemsTravel.Int64
+		resp.NonTemsTravel = &val
 	}
 	if n.NonTemsAccommodation.Valid {
-		resp.NonTemsAccommodation = &n.NonTemsAccommodation.Float64
+		val := n.NonTemsAccommodation.Int64
+		resp.NonTemsAccommodation = &val
 	}
 	if n.TotalCost.Valid {
-		resp.TotalCost = &n.TotalCost.Float64
+		val := n.TotalCost.Int64
+		resp.TotalCost = &val
 	}
 
 	return resp
@@ -540,25 +544,59 @@ func MapNominationToResponse(n db.Nomination) models.NominationResponse {
 // MapTrainingToResponse converts db.Training to models.TrainingResponse.
 func MapTrainingToResponse(t db.Training) models.TrainingResponse {
 	resp := models.TrainingResponse{
-		ID:             t.ID.String(),
-		Title:          t.Title,
-		Category:       t.Category,
-		StartDate:      t.StartDate.Format(time.RFC3339),
-		EndDate:        t.EndDate.Format(time.RFC3339),
-		CreatedByID:    t.CreatedByID.String(),
-		DeadlineDays:   t.DeadlineDays,
-		HrProgramID:    t.HrProgramID.String(),
-		MappedCategory: t.MappedCategory,
-		ModeOfDelivery: t.ModeOfDelivery,
-		InstructorName: t.InstructorName,
-		FacilityID:     t.FacilityID.String(),
-		IsActive:       t.IsActive,
-		CreatedAt:      t.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:      t.UpdatedAt.Format(time.RFC3339),
+		ID:               t.ID.String(),
+		Title:            t.Title,
+		Category:         t.Category,
+		StartDate:        t.StartDate.Format(time.RFC3339),
+		EndDate:          t.EndDate.Format(time.RFC3339),
+		CreatedByID:      t.CreatedByID.String(),
+		DeadlineDays:     t.DeadlineDays,
+		VenueCost:        t.VenueCost.Int64,
+		ProfessionalFees: t.ProfessionalFees.Int64,
+		StationaryCost:   t.StationaryCost.Int64,
+		Status:           t.Status,
+		ModeOfDelivery:   t.ModeOfDelivery,
+		IsActive:         t.IsActive,
+		CreatedAt:        t.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:        t.UpdatedAt.Format(time.RFC3339),
 	}
 
 	if t.Description.Valid {
 		resp.Description = &t.Description.String
+	}
+	if t.InstructorName.Valid {
+		resp.InstructorName = &t.InstructorName.String
+	}
+	if t.LearningOutcomes.Valid {
+		resp.LearningOutcomes = &t.LearningOutcomes.String
+	}
+	if t.MonthTag.Valid {
+		resp.MonthTag = &t.MonthTag.String
+	}
+	if t.StartTime.Valid {
+		resp.StartTime = &t.StartTime.String
+	}
+	if t.EndTime.Valid {
+		resp.EndTime = &t.EndTime.String
+	}
+	if t.Timezone.Valid {
+		resp.Timezone = &t.Timezone.String
+	}
+	if t.Format.Valid {
+		resp.Format = &t.Format.String
+	}
+	if t.RegistrationDeadline.Valid {
+		rd := t.RegistrationDeadline.Time.Format(time.RFC3339)
+		resp.RegistrationDeadline = &rd
+	}
+	if t.MaxCapacity.Valid {
+		resp.MaxCapacity = &t.MaxCapacity.Int64
+	}
+	if t.TargetClusters.Valid {
+		resp.TargetClusters = &t.TargetClusters.String
+	}
+	if t.PrerequisitesUrl.Valid {
+		resp.PrerequisitesUrl = &t.PrerequisitesUrl.String
 	}
 	if t.Location.Valid {
 		resp.Location = &t.Location.String
@@ -566,8 +604,15 @@ func MapTrainingToResponse(t db.Training) models.TrainingResponse {
 	if t.VirtualLink.Valid {
 		resp.VirtualLink = &t.VirtualLink.String
 	}
-	if t.PreReadUri.Valid {
-		resp.PreReadURI = &t.PreReadUri.String
+	if t.PreReadUrl.Valid {
+		resp.PreReadUrl = &t.PreReadUrl.String
+	}
+	if t.HrProgramID != uuid.Nil {
+		id := t.HrProgramID.String()
+		resp.HrProgramID = &id
+	}
+	if t.MappedCategory.Valid {
+		resp.MappedCategory = &t.MappedCategory.String
 	}
 	if t.InstitutePartnerName.Valid {
 		resp.InstitutePartnerName = &t.InstitutePartnerName.String
@@ -583,6 +628,10 @@ func MapTrainingToResponse(t db.Training) models.TrainingResponse {
 	}
 	if t.TrainingMandays.Valid {
 		resp.TrainingMandays = &t.TrainingMandays.Float64
+	}
+	if t.FacilityID != uuid.Nil {
+		id := t.FacilityID.String()
+		resp.FacilityID = &id
 	}
 
 	return resp

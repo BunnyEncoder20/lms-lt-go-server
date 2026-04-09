@@ -14,12 +14,49 @@ import (
 	"go-server/internal/models"
 )
 
+const confirmAttendanceRequest = `-- name: ConfirmAttendanceRequest :one
+UPDATE attendance_requests SET
+    status = 'CONFIRMED',
+    confirmed_at = CURRENT_TIMESTAMP,
+    confirmed_ip = ?,
+    confirmed_user_agent = ?
+WHERE id = ?
+RETURNING id, token_hash, status, sent_at, confirmed_at, consumed_at, confirmed_ip, confirmed_user_agent, created_at, dispatch_id, nomination_id, user_id, consumed_by_user_id
+`
+
+type ConfirmAttendanceRequestParams struct {
+	ConfirmedIp        sql.NullString `json:"confirmed_ip"`
+	ConfirmedUserAgent sql.NullString `json:"confirmed_user_agent"`
+	ID                 uuid.UUID      `json:"id"`
+}
+
+func (q *Queries) ConfirmAttendanceRequest(ctx context.Context, arg ConfirmAttendanceRequestParams) (AttendanceRequest, error) {
+	row := q.db.QueryRowContext(ctx, confirmAttendanceRequest, arg.ConfirmedIp, arg.ConfirmedUserAgent, arg.ID)
+	var i AttendanceRequest
+	err := row.Scan(
+		&i.ID,
+		&i.TokenHash,
+		&i.Status,
+		&i.SentAt,
+		&i.ConfirmedAt,
+		&i.ConsumedAt,
+		&i.ConfirmedIp,
+		&i.ConfirmedUserAgent,
+		&i.CreatedAt,
+		&i.DispatchID,
+		&i.NominationID,
+		&i.UserID,
+		&i.ConsumedByUserID,
+	)
+	return i, err
+}
+
 const countNominationsByStatus = `-- name: CountNominationsByStatus :one
 SELECT
     COUNT(*) AS total_count,
-    SUM(CASE WHEN status = 'PENDING_MANAGER' THEN 1 ELSE 0 END)
+    SUM(CASE WHEN status = 'PENDING_MANAGER_APPROVAL' THEN 1 ELSE 0 END)
         AS pending_count,
-    SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) AS approved_count,
+    SUM(CASE WHEN status = 'ENROLLED' THEN 1 ELSE 0 END) AS approved_count,
     SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed_count,
     SUM(CASE WHEN status = 'ATTENDED' THEN 1 ELSE 0 END) AS attended_count
 FROM nominations
@@ -49,9 +86,9 @@ func (q *Queries) CountNominationsByStatus(ctx context.Context) (CountNomination
 const countNominationsByUserID = `-- name: CountNominationsByUserID :one
 SELECT
     COUNT(*) AS total_count,
-    SUM(CASE WHEN status = 'PENDING_MANAGER' THEN 1 ELSE 0 END)
+    SUM(CASE WHEN status = 'PENDING_MANAGER_APPROVAL' THEN 1 ELSE 0 END)
         AS pending_count,
-    SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) AS approved_count,
+    SUM(CASE WHEN status = 'ENROLLED' THEN 1 ELSE 0 END) AS approved_count,
     SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed_count,
     SUM(CASE WHEN status = 'ATTENDED' THEN 1 ELSE 0 END) AS attended_count
 FROM nominations
@@ -94,9 +131,9 @@ func (q *Queries) CountTeamMembers(ctx context.Context, isID uuid.NullUUID) (int
 const countTeamNominationsByManager = `-- name: CountTeamNominationsByManager :one
 SELECT
     COUNT(*) AS total_count,
-    SUM(CASE WHEN status = 'PENDING_MANAGER' THEN 1 ELSE 0 END)
+    SUM(CASE WHEN status = 'PENDING_MANAGER_APPROVAL' THEN 1 ELSE 0 END)
         AS pending_count,
-    SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) AS approved_count,
+    SUM(CASE WHEN status = 'ENROLLED' THEN 1 ELSE 0 END) AS approved_count,
     SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed_count,
     SUM(CASE WHEN status = 'ATTENDED' THEN 1 ELSE 0 END) AS attended_count
 FROM nominations n
@@ -125,15 +162,145 @@ func (q *Queries) CountTeamNominationsByManager(ctx context.Context, isID uuid.N
 	return i, err
 }
 
+const createAttendanceDispatch = `-- name: CreateAttendanceDispatch :one
+INSERT INTO attendance_dispatches (
+    id, entity_type, expires_at, training_id, course_id, created_by_id
+) VALUES (
+    ?, ?, ?, ?, ?, ?
+)
+RETURNING id, entity_type, created_at, expires_at, closed_at, training_id, course_id, created_by_id
+`
+
+type CreateAttendanceDispatchParams struct {
+	ID          uuid.UUID `json:"id"`
+	EntityType  string    `json:"entity_type"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	TrainingID  uuid.UUID `json:"training_id"`
+	CourseID    uuid.UUID `json:"course_id"`
+	CreatedByID uuid.UUID `json:"created_by_id"`
+}
+
+// ATTENDANCE DISPATCHES
+func (q *Queries) CreateAttendanceDispatch(ctx context.Context, arg CreateAttendanceDispatchParams) (AttendanceDispatch, error) {
+	row := q.db.QueryRowContext(ctx, createAttendanceDispatch,
+		arg.ID,
+		arg.EntityType,
+		arg.ExpiresAt,
+		arg.TrainingID,
+		arg.CourseID,
+		arg.CreatedByID,
+	)
+	var i AttendanceDispatch
+	err := row.Scan(
+		&i.ID,
+		&i.EntityType,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.ClosedAt,
+		&i.TrainingID,
+		&i.CourseID,
+		&i.CreatedByID,
+	)
+	return i, err
+}
+
+const createAttendanceRequest = `-- name: CreateAttendanceRequest :one
+INSERT INTO attendance_requests (
+    id, token_hash, dispatch_id, nomination_id, user_id
+) VALUES (
+    ?, ?, ?, ?, ?
+)
+RETURNING id, token_hash, status, sent_at, confirmed_at, consumed_at, confirmed_ip, confirmed_user_agent, created_at, dispatch_id, nomination_id, user_id, consumed_by_user_id
+`
+
+type CreateAttendanceRequestParams struct {
+	ID           uuid.UUID `json:"id"`
+	TokenHash    string    `json:"token_hash"`
+	DispatchID   uuid.UUID `json:"dispatch_id"`
+	NominationID uuid.UUID `json:"nomination_id"`
+	UserID       uuid.UUID `json:"user_id"`
+}
+
+// ATTENDANCE REQUESTS
+func (q *Queries) CreateAttendanceRequest(ctx context.Context, arg CreateAttendanceRequestParams) (AttendanceRequest, error) {
+	row := q.db.QueryRowContext(ctx, createAttendanceRequest,
+		arg.ID,
+		arg.TokenHash,
+		arg.DispatchID,
+		arg.NominationID,
+		arg.UserID,
+	)
+	var i AttendanceRequest
+	err := row.Scan(
+		&i.ID,
+		&i.TokenHash,
+		&i.Status,
+		&i.SentAt,
+		&i.ConfirmedAt,
+		&i.ConsumedAt,
+		&i.ConfirmedIp,
+		&i.ConfirmedUserAgent,
+		&i.CreatedAt,
+		&i.DispatchID,
+		&i.NominationID,
+		&i.UserID,
+		&i.ConsumedByUserID,
+	)
+	return i, err
+}
+
+const createCalendarPlan = `-- name: CreateCalendarPlan :one
+INSERT INTO training_calendar_plans (
+    id, program_name, mapped_category, target_month,
+    status, actual_training_id
+) VALUES (
+    ?, ?, ?, ?, ?, ?
+)
+RETURNING id, program_name, mapped_category, target_month, status, actual_training_id, created_at, updated_at
+`
+
+type CreateCalendarPlanParams struct {
+	ID               uuid.UUID                 `json:"id"`
+	ProgramName      string                    `json:"program_name"`
+	MappedCategory   string                    `json:"mapped_category"`
+	TargetMonth      string                    `json:"target_month"`
+	Status           models.CalendarPlanStatus `json:"status"`
+	ActualTrainingID uuid.NullUUID             `json:"actual_training_id"`
+}
+
+// TRAINING CALENDAR PLANS
+func (q *Queries) CreateCalendarPlan(ctx context.Context, arg CreateCalendarPlanParams) (TrainingCalendarPlan, error) {
+	row := q.db.QueryRowContext(ctx, createCalendarPlan,
+		arg.ID,
+		arg.ProgramName,
+		arg.MappedCategory,
+		arg.TargetMonth,
+		arg.Status,
+		arg.ActualTrainingID,
+	)
+	var i TrainingCalendarPlan
+	err := row.Scan(
+		&i.ID,
+		&i.ProgramName,
+		&i.MappedCategory,
+		&i.TargetMonth,
+		&i.Status,
+		&i.ActualTrainingID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createCourse = `-- name: CreateCourse :one
 INSERT INTO courses (
-    id, title, description, author_id, cover_image_uri, status,
-    category, estimated_durations, learning_outcomes, is_strict_sequencing,
+    id, title, description, author_id, cover_image_url, status,
+    category, estimated_duration, learning_outcomes, is_strict_sequencing,
     version, published_at
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, title, description, author_id, cover_image_uri, status, category, estimated_durations, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at
+RETURNING id, title, description, author_id, cover_image_url, status, category, estimated_duration, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at
 `
 
 type CreateCourseParams struct {
@@ -141,10 +308,10 @@ type CreateCourseParams struct {
 	Title              string                  `json:"title"`
 	Description        sql.NullString          `json:"description"`
 	AuthorID           uuid.NullUUID           `json:"author_id"`
-	CoverImageUri      sql.NullString          `json:"cover_image_uri"`
+	CoverImageUrl      sql.NullString          `json:"cover_image_url"`
 	Status             models.CourseStatus     `json:"status"`
 	Category           models.TrainingCategory `json:"category"`
-	EstimatedDurations sql.NullInt64           `json:"estimated_durations"`
+	EstimatedDuration  sql.NullInt64           `json:"estimated_duration"`
 	LearningOutcomes   string                  `json:"learning_outcomes"`
 	IsStrictSequencing bool                    `json:"is_strict_sequencing"`
 	Version            int64                   `json:"version"`
@@ -158,10 +325,10 @@ func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Cou
 		arg.Title,
 		arg.Description,
 		arg.AuthorID,
-		arg.CoverImageUri,
+		arg.CoverImageUrl,
 		arg.Status,
 		arg.Category,
-		arg.EstimatedDurations,
+		arg.EstimatedDuration,
 		arg.LearningOutcomes,
 		arg.IsStrictSequencing,
 		arg.Version,
@@ -173,10 +340,10 @@ func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Cou
 		&i.Title,
 		&i.Description,
 		&i.AuthorID,
-		&i.CoverImageUri,
+		&i.CoverImageUrl,
 		&i.Status,
 		&i.Category,
-		&i.EstimatedDurations,
+		&i.EstimatedDuration,
 		&i.LearningOutcomes,
 		&i.IsStrictSequencing,
 		&i.Version,
@@ -274,21 +441,76 @@ func (q *Queries) CreateCourseModule(ctx context.Context, arg CreateCourseModule
 	return i, err
 }
 
+const createHistoricalRecord = `-- name: CreateHistoricalRecord :exec
+INSERT INTO historical_training_records (
+    id, program_id, program_title, mapped_category, cluster,
+    employee_pes_no, employee_name, completion_status,
+    mode_of_delivery, from_date, to_date, month_key,
+    man_days, man_hours, total_cost_inr, source_file
+) VALUES (
+    ?, ?, ?, ?, ?,
+    ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, ?, ?
+)
+`
+
+type CreateHistoricalRecordParams struct {
+	ID               uuid.UUID       `json:"id"`
+	ProgramID        uuid.UUID       `json:"program_id"`
+	ProgramTitle     string          `json:"program_title"`
+	MappedCategory   sql.NullString  `json:"mapped_category"`
+	Cluster          sql.NullString  `json:"cluster"`
+	EmployeePesNo    sql.NullString  `json:"employee_pes_no"`
+	EmployeeName     sql.NullString  `json:"employee_name"`
+	CompletionStatus sql.NullString  `json:"completion_status"`
+	ModeOfDelivery   sql.NullString  `json:"mode_of_delivery"`
+	FromDate         sql.NullTime    `json:"from_date"`
+	ToDate           sql.NullTime    `json:"to_date"`
+	MonthKey         string          `json:"month_key"`
+	ManDays          sql.NullFloat64 `json:"man_days"`
+	ManHours         sql.NullFloat64 `json:"man_hours"`
+	TotalCostInr     sql.NullInt64   `json:"total_cost_inr"`
+	SourceFile       sql.NullString  `json:"source_file"`
+}
+
+func (q *Queries) CreateHistoricalRecord(ctx context.Context, arg CreateHistoricalRecordParams) error {
+	_, err := q.db.ExecContext(ctx, createHistoricalRecord,
+		arg.ID,
+		arg.ProgramID,
+		arg.ProgramTitle,
+		arg.MappedCategory,
+		arg.Cluster,
+		arg.EmployeePesNo,
+		arg.EmployeeName,
+		arg.CompletionStatus,
+		arg.ModeOfDelivery,
+		arg.FromDate,
+		arg.ToDate,
+		arg.MonthKey,
+		arg.ManDays,
+		arg.ManHours,
+		arg.TotalCostInr,
+		arg.SourceFile,
+	)
+	return err
+}
+
 const createLesson = `-- name: CreateLesson :one
 INSERT INTO lessons (
-    id, title, content_type, asset_uri, rich_text_content,
+    id, title, content_type, asset_url, rich_text_content,
     duration_minutes, sequence_order, module_id
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?, ?
 )
-RETURNING id, title, content_type, asset_uri, rich_text_content, duration_minutes, sequence_order, module_id, created_at, updated_at
+RETURNING id, title, content_type, asset_url, rich_text_content, duration_minutes, sequence_order, module_id, created_at, updated_at
 `
 
 type CreateLessonParams struct {
 	ID              uuid.UUID                `json:"id"`
 	Title           string                   `json:"title"`
 	ContentType     models.LessonContentType `json:"content_type"`
-	AssetUri        sql.NullString           `json:"asset_uri"`
+	AssetUrl        sql.NullString           `json:"asset_url"`
 	RichTextContent sql.NullString           `json:"rich_text_content"`
 	DurationMinutes sql.NullInt64            `json:"duration_minutes"`
 	SequenceOrder   int64                    `json:"sequence_order"`
@@ -301,7 +523,7 @@ func (q *Queries) CreateLesson(ctx context.Context, arg CreateLessonParams) (Les
 		arg.ID,
 		arg.Title,
 		arg.ContentType,
-		arg.AssetUri,
+		arg.AssetUrl,
 		arg.RichTextContent,
 		arg.DurationMinutes,
 		arg.SequenceOrder,
@@ -312,7 +534,7 @@ func (q *Queries) CreateLesson(ctx context.Context, arg CreateLessonParams) (Les
 		&i.ID,
 		&i.Title,
 		&i.ContentType,
-		&i.AssetUri,
+		&i.AssetUrl,
 		&i.RichTextContent,
 		&i.DurationMinutes,
 		&i.SequenceOrder,
@@ -323,32 +545,71 @@ func (q *Queries) CreateLesson(ctx context.Context, arg CreateLessonParams) (Les
 	return i, err
 }
 
+const createManagerAllocation = `-- name: CreateManagerAllocation :one
+INSERT INTO manager_allocations (
+    id, training_id, course_id, manager_id, assigned_by_id
+) VALUES (
+    ?, ?, ?, ?, ?
+)
+RETURNING id, created_at, training_id, course_id, manager_id, assigned_by_id
+`
+
+type CreateManagerAllocationParams struct {
+	ID           uuid.UUID `json:"id"`
+	TrainingID   uuid.UUID `json:"training_id"`
+	CourseID     uuid.UUID `json:"course_id"`
+	ManagerID    uuid.UUID `json:"manager_id"`
+	AssignedByID uuid.UUID `json:"assigned_by_id"`
+}
+
+// MANAGER ALLOCATIONS
+func (q *Queries) CreateManagerAllocation(ctx context.Context, arg CreateManagerAllocationParams) (ManagerAllocation, error) {
+	row := q.db.QueryRowContext(ctx, createManagerAllocation,
+		arg.ID,
+		arg.TrainingID,
+		arg.CourseID,
+		arg.ManagerID,
+		arg.AssignedByID,
+	)
+	var i ManagerAllocation
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.TrainingID,
+		&i.CourseID,
+		&i.ManagerID,
+		&i.AssignedByID,
+	)
+	return i, err
+}
+
 const createNomination = `-- name: CreateNomination :one
 INSERT INTO nominations (
-    id, status, user_id, training_id, nominated_by_id,
+    id, status, user_id, training_id, course_id, nominated_by_id,
     hr_completion_status, prof_fees, venue_cost, other_cost,
     non_tems_travel, non_tems_accommodation, total_cost
 ) VALUES (
-    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?, ?,
     ?, ?, ?, ?,
     ?, ?, ?
 )
-RETURNING id, status, user_id, training_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at
+RETURNING id, status, user_id, training_id, course_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at
 `
 
 type CreateNominationParams struct {
 	ID                   uuid.UUID               `json:"id"`
 	Status               models.NominationStatus `json:"status"`
 	UserID               uuid.UUID               `json:"user_id"`
-	TrainingID           uuid.UUID               `json:"training_id"`
+	TrainingID           uuid.NullUUID           `json:"training_id"`
+	CourseID             uuid.NullUUID           `json:"course_id"`
 	NominatedByID        uuid.UUID               `json:"nominated_by_id"`
 	HrCompletionStatus   sql.NullString          `json:"hr_completion_status"`
-	ProfFees             sql.NullFloat64         `json:"prof_fees"`
-	VenueCost            sql.NullFloat64         `json:"venue_cost"`
-	OtherCost            sql.NullFloat64         `json:"other_cost"`
-	NonTemsTravel        sql.NullFloat64         `json:"non_tems_travel"`
-	NonTemsAccommodation sql.NullFloat64         `json:"non_tems_accommodation"`
-	TotalCost            sql.NullFloat64         `json:"total_cost"`
+	ProfFees             sql.NullInt64           `json:"prof_fees"`
+	VenueCost            sql.NullInt64           `json:"venue_cost"`
+	OtherCost            sql.NullInt64           `json:"other_cost"`
+	NonTemsTravel        sql.NullInt64           `json:"non_tems_travel"`
+	NonTemsAccommodation sql.NullInt64           `json:"non_tems_accommodation"`
+	TotalCost            sql.NullInt64           `json:"total_cost"`
 }
 
 // NOMINATIONS
@@ -358,6 +619,7 @@ func (q *Queries) CreateNomination(ctx context.Context, arg CreateNominationPara
 		arg.Status,
 		arg.UserID,
 		arg.TrainingID,
+		arg.CourseID,
 		arg.NominatedByID,
 		arg.HrCompletionStatus,
 		arg.ProfFees,
@@ -373,6 +635,7 @@ func (q *Queries) CreateNomination(ctx context.Context, arg CreateNominationPara
 		&i.Status,
 		&i.UserID,
 		&i.TrainingID,
+		&i.CourseID,
 		&i.NominatedByID,
 		&i.HrCompletionStatus,
 		&i.ProfFees,
@@ -389,21 +652,29 @@ func (q *Queries) CreateNomination(ctx context.Context, arg CreateNominationPara
 
 const createTraining = `-- name: CreateTraining :one
 INSERT INTO trainings (
-    id, title, description, category, start_date, end_date,
-    location, virtual_link, pre_read_uri, created_by_id,
-    deadline_days, hr_program_id, mapped_category, mode_of_delivery,
-    instructor_name, institute_partner_name, process_owner_name,
+    id, title, description, category, instructor_name,
+    learning_outcomes, month_tag, start_date, end_date,
+    start_time, end_time, timezone, format,
+    registration_deadline, max_capacity, target_clusters,
+    prerequisites_url, venue_cost, professional_fees, stationary_cost,
+    status, location, virtual_link, pre_read_url,
+    deadline_days, created_by_id, hr_program_id, mapped_category,
+    mode_of_delivery, institute_partner_name, process_owner_name,
     process_owner_email, duration_manhours, training_mandays,
     facility_id
 ) VALUES (
-    ?, ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, ?,
+    ?, ?, ?, ?,
     ?, ?, ?, ?,
     ?, ?, ?, ?,
     ?, ?, ?,
     ?, ?, ?,
     ?
 )
-RETURNING id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at
+RETURNING id, title, description, category, instructor_name, learning_outcomes, month_tag, start_date, end_date, start_time, end_time, timezone, format, registration_deadline, max_capacity, target_clusters, prerequisites_url, venue_cost, professional_fees, stationary_cost, status, location, virtual_link, pre_read_url, deadline_days, is_active, created_at, updated_at, created_by_id, hr_program_id, mapped_category, mode_of_delivery, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id
 `
 
 type CreateTrainingParams struct {
@@ -411,17 +682,31 @@ type CreateTrainingParams struct {
 	Title                string                  `json:"title"`
 	Description          sql.NullString          `json:"description"`
 	Category             models.TrainingCategory `json:"category"`
+	InstructorName       sql.NullString          `json:"instructor_name"`
+	LearningOutcomes     sql.NullString          `json:"learning_outcomes"`
+	MonthTag             sql.NullString          `json:"month_tag"`
 	StartDate            time.Time               `json:"start_date"`
 	EndDate              time.Time               `json:"end_date"`
+	StartTime            sql.NullString          `json:"start_time"`
+	EndTime              sql.NullString          `json:"end_time"`
+	Timezone             sql.NullString          `json:"timezone"`
+	Format               sql.NullString          `json:"format"`
+	RegistrationDeadline sql.NullTime            `json:"registration_deadline"`
+	MaxCapacity          sql.NullInt64           `json:"max_capacity"`
+	TargetClusters       sql.NullString          `json:"target_clusters"`
+	PrerequisitesUrl     sql.NullString          `json:"prerequisites_url"`
+	VenueCost            sql.NullInt64           `json:"venue_cost"`
+	ProfessionalFees     sql.NullInt64           `json:"professional_fees"`
+	StationaryCost       sql.NullInt64           `json:"stationary_cost"`
+	Status               string                  `json:"status"`
 	Location             sql.NullString          `json:"location"`
 	VirtualLink          sql.NullString          `json:"virtual_link"`
-	PreReadUri           sql.NullString          `json:"pre_read_uri"`
-	CreatedByID          uuid.UUID               `json:"created_by_id"`
+	PreReadUrl           sql.NullString          `json:"pre_read_url"`
 	DeadlineDays         int64                   `json:"deadline_days"`
+	CreatedByID          uuid.UUID               `json:"created_by_id"`
 	HrProgramID          uuid.UUID               `json:"hr_program_id"`
-	MappedCategory       string                  `json:"mapped_category"`
+	MappedCategory       sql.NullString          `json:"mapped_category"`
 	ModeOfDelivery       models.DeliveryMode     `json:"mode_of_delivery"`
-	InstructorName       string                  `json:"instructor_name"`
 	InstitutePartnerName sql.NullString          `json:"institute_partner_name"`
 	ProcessOwnerName     sql.NullString          `json:"process_owner_name"`
 	ProcessOwnerEmail    sql.NullString          `json:"process_owner_email"`
@@ -437,17 +722,31 @@ func (q *Queries) CreateTraining(ctx context.Context, arg CreateTrainingParams) 
 		arg.Title,
 		arg.Description,
 		arg.Category,
+		arg.InstructorName,
+		arg.LearningOutcomes,
+		arg.MonthTag,
 		arg.StartDate,
 		arg.EndDate,
+		arg.StartTime,
+		arg.EndTime,
+		arg.Timezone,
+		arg.Format,
+		arg.RegistrationDeadline,
+		arg.MaxCapacity,
+		arg.TargetClusters,
+		arg.PrerequisitesUrl,
+		arg.VenueCost,
+		arg.ProfessionalFees,
+		arg.StationaryCost,
+		arg.Status,
 		arg.Location,
 		arg.VirtualLink,
-		arg.PreReadUri,
-		arg.CreatedByID,
+		arg.PreReadUrl,
 		arg.DeadlineDays,
+		arg.CreatedByID,
 		arg.HrProgramID,
 		arg.MappedCategory,
 		arg.ModeOfDelivery,
-		arg.InstructorName,
 		arg.InstitutePartnerName,
 		arg.ProcessOwnerName,
 		arg.ProcessOwnerEmail,
@@ -461,67 +760,96 @@ func (q *Queries) CreateTraining(ctx context.Context, arg CreateTrainingParams) 
 		&i.Title,
 		&i.Description,
 		&i.Category,
+		&i.InstructorName,
+		&i.LearningOutcomes,
+		&i.MonthTag,
 		&i.StartDate,
 		&i.EndDate,
+		&i.StartTime,
+		&i.EndTime,
+		&i.Timezone,
+		&i.Format,
+		&i.RegistrationDeadline,
+		&i.MaxCapacity,
+		&i.TargetClusters,
+		&i.PrerequisitesUrl,
+		&i.VenueCost,
+		&i.ProfessionalFees,
+		&i.StationaryCost,
+		&i.Status,
 		&i.Location,
 		&i.VirtualLink,
-		&i.PreReadUri,
-		&i.CreatedByID,
+		&i.PreReadUrl,
 		&i.DeadlineDays,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CreatedByID,
 		&i.HrProgramID,
 		&i.MappedCategory,
 		&i.ModeOfDelivery,
-		&i.InstructorName,
 		&i.InstitutePartnerName,
 		&i.ProcessOwnerName,
 		&i.ProcessOwnerEmail,
 		&i.DurationManhours,
 		&i.TrainingMandays,
 		&i.FacilityID,
-		&i.IsActive,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
-    id, pes_number, password, first_name, last_name,
-    email, role, cluster, title, gender, band, grade,
+    id, pes_number, password, first_name, last_name, full_name,
+    email, role, cluster, location, title, gender, band, grade,
+    employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name,
     ic, sbg, bu, segment, department, base_location,
-    is_id, ns_id, dh_id
+    manager_id, skip_manager_id, is_id, ns_id, dh_id
 ) VALUES (
-    ?, ?, ?, ?, ?,
-    ?, ?, ?, ?, ?, ?, ?,
-    ?, ?, ?, ?, ?, ?,
-    ?, ?, ?
+    ?1, ?2, ?3, ?4, ?5, ?6,
+    ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14,
+    ?15, ?16, ?17, ?18, ?19, ?20, ?21,
+    ?22, ?23, ?24, ?25, ?26, ?27,
+    NULLIF(?28, '00000000-0000-0000-0000-000000000000'), 
+    NULLIF(?29, '00000000-0000-0000-0000-000000000000'), 
+    ?30, ?31, ?32
 )
-RETURNING id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
+RETURNING id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
 `
 
 type CreateUserParams struct {
-	ID           uuid.UUID      `json:"id"`
-	PesNumber    string         `json:"pes_number"`
-	Password     string         `json:"password"`
-	FirstName    string         `json:"first_name"`
-	LastName     string         `json:"last_name"`
-	Email        string         `json:"email"`
-	Role         models.Role    `json:"role"`
-	Cluster      sql.NullString `json:"cluster"`
-	Title        string         `json:"title"`
-	Gender       string         `json:"gender"`
-	Band         string         `json:"band"`
-	Grade        string         `json:"grade"`
-	Ic           string         `json:"ic"`
-	Sbg          string         `json:"sbg"`
-	Bu           string         `json:"bu"`
-	Segment      string         `json:"segment"`
-	Department   string         `json:"department"`
-	BaseLocation string         `json:"base_location"`
-	IsID         uuid.NullUUID  `json:"is_id"`
-	NsID         uuid.NullUUID  `json:"ns_id"`
-	DhID         uuid.NullUUID  `json:"dh_id"`
+	ID               uuid.UUID      `json:"id"`
+	PesNumber        string         `json:"pes_number"`
+	Password         string         `json:"password"`
+	FirstName        string         `json:"first_name"`
+	LastName         string         `json:"last_name"`
+	FullName         sql.NullString `json:"full_name"`
+	Email            string         `json:"email"`
+	Role             models.Role    `json:"role"`
+	Cluster          sql.NullString `json:"cluster"`
+	Location         sql.NullString `json:"location"`
+	Title            string         `json:"title"`
+	Gender           string         `json:"gender"`
+	Band             string         `json:"band"`
+	Grade            string         `json:"grade"`
+	EmploymentStatus sql.NullString `json:"employment_status"`
+	IsPsn            sql.NullString `json:"is_psn"`
+	IsName           sql.NullString `json:"is_name"`
+	NsPsn            sql.NullString `json:"ns_psn"`
+	NsName           sql.NullString `json:"ns_name"`
+	DhPsn            sql.NullString `json:"dh_psn"`
+	DhName           sql.NullString `json:"dh_name"`
+	Ic               sql.NullString `json:"ic"`
+	Sbg              sql.NullString `json:"sbg"`
+	Bu               sql.NullString `json:"bu"`
+	Segment          sql.NullString `json:"segment"`
+	Department       sql.NullString `json:"department"`
+	BaseLocation     sql.NullString `json:"base_location"`
+	ManagerID        interface{}    `json:"manager_id"`
+	SkipManagerID    interface{}    `json:"skip_manager_id"`
+	IsID             uuid.NullUUID  `json:"is_id"`
+	NsID             uuid.NullUUID  `json:"ns_id"`
+	DhID             uuid.NullUUID  `json:"dh_id"`
 }
 
 // USERS
@@ -532,19 +860,30 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.Password,
 		arg.FirstName,
 		arg.LastName,
+		arg.FullName,
 		arg.Email,
 		arg.Role,
 		arg.Cluster,
+		arg.Location,
 		arg.Title,
 		arg.Gender,
 		arg.Band,
 		arg.Grade,
+		arg.EmploymentStatus,
+		arg.IsPsn,
+		arg.IsName,
+		arg.NsPsn,
+		arg.NsName,
+		arg.DhPsn,
+		arg.DhName,
 		arg.Ic,
 		arg.Sbg,
 		arg.Bu,
 		arg.Segment,
 		arg.Department,
 		arg.BaseLocation,
+		arg.ManagerID,
+		arg.SkipManagerID,
 		arg.IsID,
 		arg.NsID,
 		arg.DhID,
@@ -556,13 +895,22 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Password,
 		&i.FirstName,
 		&i.LastName,
+		&i.FullName,
 		&i.Email,
 		&i.Role,
 		&i.Cluster,
+		&i.Location,
 		&i.Title,
 		&i.Gender,
 		&i.Band,
 		&i.Grade,
+		&i.EmploymentStatus,
+		&i.IsPsn,
+		&i.IsName,
+		&i.NsPsn,
+		&i.NsName,
+		&i.DhPsn,
+		&i.DhName,
 		&i.Ic,
 		&i.Sbg,
 		&i.Bu,
@@ -572,11 +920,22 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ManagerID,
+		&i.SkipManagerID,
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,
 	)
 	return i, err
+}
+
+const deleteAllHistoricalRecords = `-- name: DeleteAllHistoricalRecords :exec
+DELETE FROM historical_training_records
+`
+
+func (q *Queries) DeleteAllHistoricalRecords(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteAllHistoricalRecords)
+	return err
 }
 
 const deleteTraining = `-- name: DeleteTraining :exec
@@ -609,10 +968,10 @@ training_counts AS (
 
 nomination_stats AS (
     SELECT
-        COUNT(*) FILTER (WHERE status IN ('APPROVED', 'COMPLETED', 'ATTENDED'))
+        COUNT(*) FILTER (WHERE status IN ('ENROLLED', 'COMPLETED', 'ATTENDED'))
             AS total_participants,
         COUNT(*) FILTER (WHERE status = 'COMPLETED') AS completed_count,
-        COUNT(*) FILTER (WHERE status IN ('APPROVED', 'COMPLETED', 'ATTENDED'))
+        COUNT(*) FILTER (WHERE status IN ('ENROLLED', 'COMPLETED', 'ATTENDED'))
             AS enrolled_count
     FROM nominations
 ),
@@ -625,7 +984,7 @@ mandays_calc AS (
             AS total_man_days
     FROM trainings t
     JOIN nominations n ON t.id = n.training_id
-    WHERE t.is_active = 1 AND n.status IN ('APPROVED', 'COMPLETED', 'ATTENDED')
+    WHERE t.is_active = 1 AND n.status IN ('ENROLLED', 'COMPLETED', 'ATTENDED')
 )
 
 SELECT
@@ -660,7 +1019,7 @@ func (q *Queries) GetAdminKpis(ctx context.Context) (GetAdminKpisRow, error) {
 }
 
 const getAllActiveAndUpcomingTrainings = `-- name: GetAllActiveAndUpcomingTrainings :many
-SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
+SELECT id, title, description, category, instructor_name, learning_outcomes, month_tag, start_date, end_date, start_time, end_time, timezone, format, registration_deadline, max_capacity, target_clusters, prerequisites_url, venue_cost, professional_fees, stationary_cost, status, location, virtual_link, pre_read_url, deadline_days, is_active, created_at, updated_at, created_by_id, hr_program_id, mapped_category, mode_of_delivery, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id FROM trainings
 WHERE start_date > CURRENT_TIMESTAMP OR is_active = 1
 ORDER BY start_date ASC
 `
@@ -679,26 +1038,40 @@ func (q *Queries) GetAllActiveAndUpcomingTrainings(ctx context.Context) ([]Train
 			&i.Title,
 			&i.Description,
 			&i.Category,
+			&i.InstructorName,
+			&i.LearningOutcomes,
+			&i.MonthTag,
 			&i.StartDate,
 			&i.EndDate,
+			&i.StartTime,
+			&i.EndTime,
+			&i.Timezone,
+			&i.Format,
+			&i.RegistrationDeadline,
+			&i.MaxCapacity,
+			&i.TargetClusters,
+			&i.PrerequisitesUrl,
+			&i.VenueCost,
+			&i.ProfessionalFees,
+			&i.StationaryCost,
+			&i.Status,
 			&i.Location,
 			&i.VirtualLink,
-			&i.PreReadUri,
-			&i.CreatedByID,
+			&i.PreReadUrl,
 			&i.DeadlineDays,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CreatedByID,
 			&i.HrProgramID,
 			&i.MappedCategory,
 			&i.ModeOfDelivery,
-			&i.InstructorName,
 			&i.InstitutePartnerName,
 			&i.ProcessOwnerName,
 			&i.ProcessOwnerEmail,
 			&i.DurationManhours,
 			&i.TrainingMandays,
 			&i.FacilityID,
-			&i.IsActive,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -713,13 +1086,39 @@ func (q *Queries) GetAllActiveAndUpcomingTrainings(ctx context.Context) ([]Train
 	return items, nil
 }
 
+const getAttendanceRequestByToken = `-- name: GetAttendanceRequestByToken :one
+SELECT id, token_hash, status, sent_at, confirmed_at, consumed_at, confirmed_ip, confirmed_user_agent, created_at, dispatch_id, nomination_id, user_id, consumed_by_user_id FROM attendance_requests
+WHERE token_hash = ?
+`
+
+func (q *Queries) GetAttendanceRequestByToken(ctx context.Context, tokenHash string) (AttendanceRequest, error) {
+	row := q.db.QueryRowContext(ctx, getAttendanceRequestByToken, tokenHash)
+	var i AttendanceRequest
+	err := row.Scan(
+		&i.ID,
+		&i.TokenHash,
+		&i.Status,
+		&i.SentAt,
+		&i.ConfirmedAt,
+		&i.ConsumedAt,
+		&i.ConfirmedIp,
+		&i.ConfirmedUserAgent,
+		&i.CreatedAt,
+		&i.DispatchID,
+		&i.NominationID,
+		&i.UserID,
+		&i.ConsumedByUserID,
+	)
+	return i, err
+}
+
 const getCategoryDistribution = `-- name: GetCategoryDistribution :many
 SELECT
     t.category AS name,
     COUNT(n.id) AS value
 FROM nominations n
 JOIN trainings t ON n.training_id = t.id
-WHERE n.status IN ('APPROVED', 'COMPLETED', 'ATTENDED')
+WHERE n.status IN ('ENROLLED', 'COMPLETED', 'ATTENDED')
 GROUP BY t.category
 `
 
@@ -763,7 +1162,7 @@ FROM users u
 LEFT JOIN
     nominations n
     ON
-        u.id = n.user_id AND n.status IN ('APPROVED', 'COMPLETED', 'ATTENDED')
+        u.id = n.user_id AND n.status IN ('ENROLLED', 'COMPLETED', 'ATTENDED')
 WHERE u.is_active = 1 AND u.role != 'ADMIN'
 GROUP BY u.cluster
 `
@@ -804,7 +1203,7 @@ func (q *Queries) GetClusterStats(ctx context.Context) ([]GetClusterStatsRow, er
 }
 
 const getCourseByTitle = `-- name: GetCourseByTitle :one
-SELECT id, title, description, author_id, cover_image_uri, status, category, estimated_durations, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at FROM courses
+SELECT id, title, description, author_id, cover_image_url, status, category, estimated_duration, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at FROM courses
 WHERE title = ?
 `
 
@@ -816,10 +1215,10 @@ func (q *Queries) GetCourseByTitle(ctx context.Context, title string) (Course, e
 		&i.Title,
 		&i.Description,
 		&i.AuthorID,
-		&i.CoverImageUri,
+		&i.CoverImageUrl,
 		&i.Status,
 		&i.Category,
-		&i.EstimatedDurations,
+		&i.EstimatedDuration,
 		&i.LearningOutcomes,
 		&i.IsStrictSequencing,
 		&i.Version,
@@ -832,11 +1231,11 @@ func (q *Queries) GetCourseByTitle(ctx context.Context, title string) (Course, e
 
 const getCourseWithAuthor = `-- name: GetCourseWithAuthor :one
 SELECT
-    c.id, c.title, c.description, c.author_id, c.cover_image_uri, c.status, c.category, c.estimated_durations, c.learning_outcomes, c.is_strict_sequencing, c.version, c.published_at, c.created_at, c.updated_at,
+    c.id, c.title, c.description, c.author_id, c.cover_image_url, c.status, c.category, c.estimated_duration, c.learning_outcomes, c.is_strict_sequencing, c.version, c.published_at, c.created_at, c.updated_at,
     u.first_name AS author_first_name,
     u.last_name AS author_last_name
 FROM courses c
-JOIN users u ON c.author_id = u.id
+LEFT JOIN users u ON c.author_id = u.id
 WHERE c.id = ?
 LIMIT 1
 `
@@ -846,18 +1245,18 @@ type GetCourseWithAuthorRow struct {
 	Title              string                  `json:"title"`
 	Description        sql.NullString          `json:"description"`
 	AuthorID           uuid.NullUUID           `json:"author_id"`
-	CoverImageUri      sql.NullString          `json:"cover_image_uri"`
+	CoverImageUrl      sql.NullString          `json:"cover_image_url"`
 	Status             models.CourseStatus     `json:"status"`
 	Category           models.TrainingCategory `json:"category"`
-	EstimatedDurations sql.NullInt64           `json:"estimated_durations"`
+	EstimatedDuration  sql.NullInt64           `json:"estimated_duration"`
 	LearningOutcomes   string                  `json:"learning_outcomes"`
 	IsStrictSequencing bool                    `json:"is_strict_sequencing"`
 	Version            int64                   `json:"version"`
 	PublishedAt        sql.NullTime            `json:"published_at"`
 	CreatedAt          time.Time               `json:"created_at"`
 	UpdatedAt          time.Time               `json:"updated_at"`
-	AuthorFirstName    string                  `json:"author_first_name"`
-	AuthorLastName     string                  `json:"author_last_name"`
+	AuthorFirstName    sql.NullString          `json:"author_first_name"`
+	AuthorLastName     sql.NullString          `json:"author_last_name"`
 }
 
 func (q *Queries) GetCourseWithAuthor(ctx context.Context, id uuid.UUID) (GetCourseWithAuthorRow, error) {
@@ -868,10 +1267,10 @@ func (q *Queries) GetCourseWithAuthor(ctx context.Context, id uuid.UUID) (GetCou
 		&i.Title,
 		&i.Description,
 		&i.AuthorID,
-		&i.CoverImageUri,
+		&i.CoverImageUrl,
 		&i.Status,
 		&i.Category,
-		&i.EstimatedDurations,
+		&i.EstimatedDuration,
 		&i.LearningOutcomes,
 		&i.IsStrictSequencing,
 		&i.Version,
@@ -892,7 +1291,7 @@ SELECT
     COUNT(DISTINCT t.id) AS training_count
 FROM nominations n
 JOIN trainings t ON n.training_id = t.id
-WHERE n.status IN ('APPROVED', 'COMPLETED', 'ATTENDED')
+WHERE n.status IN ('ENROLLED', 'COMPLETED', 'ATTENDED')
 GROUP BY month_key
 ORDER BY month_key ASC
 `
@@ -933,7 +1332,7 @@ func (q *Queries) GetMonthlyStats(ctx context.Context) ([]GetMonthlyStatsRow, er
 }
 
 const getNominationByID = `-- name: GetNominationByID :one
-SELECT id, status, user_id, training_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at FROM nominations
+SELECT id, status, user_id, training_id, course_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at FROM nominations
 WHERE id = ?
 `
 
@@ -945,6 +1344,7 @@ func (q *Queries) GetNominationByID(ctx context.Context, id uuid.UUID) (Nominati
 		&i.Status,
 		&i.UserID,
 		&i.TrainingID,
+		&i.CourseID,
 		&i.NominatedByID,
 		&i.HrCompletionStatus,
 		&i.ProfFees,
@@ -960,7 +1360,7 @@ func (q *Queries) GetNominationByID(ctx context.Context, id uuid.UUID) (Nominati
 }
 
 const getNominationsByManagerID = `-- name: GetNominationsByManagerID :many
-SELECT n.id, n.status, n.user_id, n.training_id, n.nominated_by_id, n.hr_completion_status, n.prof_fees, n.venue_cost, n.other_cost, n.non_tems_travel, n.non_tems_accommodation, n.total_cost, n.created_at, n.updated_at FROM nominations n
+SELECT n.id, n.status, n.user_id, n.training_id, n.course_id, n.nominated_by_id, n.hr_completion_status, n.prof_fees, n.venue_cost, n.other_cost, n.non_tems_travel, n.non_tems_accommodation, n.total_cost, n.created_at, n.updated_at FROM nominations n
 JOIN users u ON n.user_id = u.id
 WHERE u.is_id = ?
 ORDER BY n.created_at DESC
@@ -980,6 +1380,7 @@ func (q *Queries) GetNominationsByManagerID(ctx context.Context, isID uuid.NullU
 			&i.Status,
 			&i.UserID,
 			&i.TrainingID,
+			&i.CourseID,
 			&i.NominatedByID,
 			&i.HrCompletionStatus,
 			&i.ProfFees,
@@ -1005,11 +1406,11 @@ func (q *Queries) GetNominationsByManagerID(ctx context.Context, isID uuid.NullU
 }
 
 const getNominationsByTrainingID = `-- name: GetNominationsByTrainingID :many
-SELECT id, status, user_id, training_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at FROM nominations
+SELECT id, status, user_id, training_id, course_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at FROM nominations
 WHERE training_id = ?
 `
 
-func (q *Queries) GetNominationsByTrainingID(ctx context.Context, trainingID uuid.UUID) ([]Nomination, error) {
+func (q *Queries) GetNominationsByTrainingID(ctx context.Context, trainingID uuid.NullUUID) ([]Nomination, error) {
 	rows, err := q.db.QueryContext(ctx, getNominationsByTrainingID, trainingID)
 	if err != nil {
 		return nil, err
@@ -1023,6 +1424,7 @@ func (q *Queries) GetNominationsByTrainingID(ctx context.Context, trainingID uui
 			&i.Status,
 			&i.UserID,
 			&i.TrainingID,
+			&i.CourseID,
 			&i.NominatedByID,
 			&i.HrCompletionStatus,
 			&i.ProfFees,
@@ -1048,10 +1450,10 @@ func (q *Queries) GetNominationsByTrainingID(ctx context.Context, trainingID uui
 }
 
 const getNominationsByUserID = `-- name: GetNominationsByUserID :many
-SELECT n.id, n.status, n.user_id, n.training_id, n.nominated_by_id, n.hr_completion_status, n.prof_fees, n.venue_cost, n.other_cost, n.non_tems_travel, n.non_tems_accommodation, n.total_cost, n.created_at, n.updated_at FROM nominations n
-JOIN trainings t ON n.training_id = t.id
+SELECT n.id, n.status, n.user_id, n.training_id, n.course_id, n.nominated_by_id, n.hr_completion_status, n.prof_fees, n.venue_cost, n.other_cost, n.non_tems_travel, n.non_tems_accommodation, n.total_cost, n.created_at, n.updated_at FROM nominations n
+LEFT JOIN trainings t ON n.training_id = t.id
 WHERE n.user_id = ?
-ORDER BY t.start_date ASC
+ORDER BY COALESCE(t.start_date, n.created_at) ASC
 `
 
 func (q *Queries) GetNominationsByUserID(ctx context.Context, userID uuid.UUID) ([]Nomination, error) {
@@ -1068,6 +1470,7 @@ func (q *Queries) GetNominationsByUserID(ctx context.Context, userID uuid.UUID) 
 			&i.Status,
 			&i.UserID,
 			&i.TrainingID,
+			&i.CourseID,
 			&i.NominatedByID,
 			&i.HrCompletionStatus,
 			&i.ProfFees,
@@ -1093,7 +1496,7 @@ func (q *Queries) GetNominationsByUserID(ctx context.Context, userID uuid.UUID) 
 }
 
 const getTeamMembers = `-- name: GetTeamMembers :many
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
+SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
 FROM users
 WHERE is_id = ?
 `
@@ -1113,13 +1516,22 @@ func (q *Queries) GetTeamMembers(ctx context.Context, isID uuid.NullUUID) ([]Use
 			&i.Password,
 			&i.FirstName,
 			&i.LastName,
+			&i.FullName,
 			&i.Email,
 			&i.Role,
 			&i.Cluster,
+			&i.Location,
 			&i.Title,
 			&i.Gender,
 			&i.Band,
 			&i.Grade,
+			&i.EmploymentStatus,
+			&i.IsPsn,
+			&i.IsName,
+			&i.NsPsn,
+			&i.NsName,
+			&i.DhPsn,
+			&i.DhName,
 			&i.Ic,
 			&i.Sbg,
 			&i.Bu,
@@ -1129,6 +1541,8 @@ func (q *Queries) GetTeamMembers(ctx context.Context, isID uuid.NullUUID) ([]Use
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ManagerID,
+			&i.SkipManagerID,
 			&i.IsID,
 			&i.NsID,
 			&i.DhID,
@@ -1147,7 +1561,7 @@ func (q *Queries) GetTeamMembers(ctx context.Context, isID uuid.NullUUID) ([]Use
 }
 
 const getTrainingByID = `-- name: GetTrainingByID :one
-SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
+SELECT id, title, description, category, instructor_name, learning_outcomes, month_tag, start_date, end_date, start_time, end_time, timezone, format, registration_deadline, max_capacity, target_clusters, prerequisites_url, venue_cost, professional_fees, stationary_cost, status, location, virtual_link, pre_read_url, deadline_days, is_active, created_at, updated_at, created_by_id, hr_program_id, mapped_category, mode_of_delivery, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id FROM trainings
 WHERE id = ?
 `
 
@@ -1159,32 +1573,46 @@ func (q *Queries) GetTrainingByID(ctx context.Context, id uuid.UUID) (Training, 
 		&i.Title,
 		&i.Description,
 		&i.Category,
+		&i.InstructorName,
+		&i.LearningOutcomes,
+		&i.MonthTag,
 		&i.StartDate,
 		&i.EndDate,
+		&i.StartTime,
+		&i.EndTime,
+		&i.Timezone,
+		&i.Format,
+		&i.RegistrationDeadline,
+		&i.MaxCapacity,
+		&i.TargetClusters,
+		&i.PrerequisitesUrl,
+		&i.VenueCost,
+		&i.ProfessionalFees,
+		&i.StationaryCost,
+		&i.Status,
 		&i.Location,
 		&i.VirtualLink,
-		&i.PreReadUri,
-		&i.CreatedByID,
+		&i.PreReadUrl,
 		&i.DeadlineDays,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CreatedByID,
 		&i.HrProgramID,
 		&i.MappedCategory,
 		&i.ModeOfDelivery,
-		&i.InstructorName,
 		&i.InstitutePartnerName,
 		&i.ProcessOwnerName,
 		&i.ProcessOwnerEmail,
 		&i.DurationManhours,
 		&i.TrainingMandays,
 		&i.FacilityID,
-		&i.IsActive,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getTrainingByTitle = `-- name: GetTrainingByTitle :one
-SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
+SELECT id, title, description, category, instructor_name, learning_outcomes, month_tag, start_date, end_date, start_time, end_time, timezone, format, registration_deadline, max_capacity, target_clusters, prerequisites_url, venue_cost, professional_fees, stationary_cost, status, location, virtual_link, pre_read_url, deadline_days, is_active, created_at, updated_at, created_by_id, hr_program_id, mapped_category, mode_of_delivery, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id FROM trainings
 WHERE title = ?
 `
 
@@ -1196,32 +1624,46 @@ func (q *Queries) GetTrainingByTitle(ctx context.Context, title string) (Trainin
 		&i.Title,
 		&i.Description,
 		&i.Category,
+		&i.InstructorName,
+		&i.LearningOutcomes,
+		&i.MonthTag,
 		&i.StartDate,
 		&i.EndDate,
+		&i.StartTime,
+		&i.EndTime,
+		&i.Timezone,
+		&i.Format,
+		&i.RegistrationDeadline,
+		&i.MaxCapacity,
+		&i.TargetClusters,
+		&i.PrerequisitesUrl,
+		&i.VenueCost,
+		&i.ProfessionalFees,
+		&i.StationaryCost,
+		&i.Status,
 		&i.Location,
 		&i.VirtualLink,
-		&i.PreReadUri,
-		&i.CreatedByID,
+		&i.PreReadUrl,
 		&i.DeadlineDays,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CreatedByID,
 		&i.HrProgramID,
 		&i.MappedCategory,
 		&i.ModeOfDelivery,
-		&i.InstructorName,
 		&i.InstitutePartnerName,
 		&i.ProcessOwnerName,
 		&i.ProcessOwnerEmail,
 		&i.DurationManhours,
 		&i.TrainingMandays,
 		&i.FacilityID,
-		&i.IsActive,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
+SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
 FROM users
 WHERE email = ?
 `
@@ -1235,13 +1677,22 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Password,
 		&i.FirstName,
 		&i.LastName,
+		&i.FullName,
 		&i.Email,
 		&i.Role,
 		&i.Cluster,
+		&i.Location,
 		&i.Title,
 		&i.Gender,
 		&i.Band,
 		&i.Grade,
+		&i.EmploymentStatus,
+		&i.IsPsn,
+		&i.IsName,
+		&i.NsPsn,
+		&i.NsName,
+		&i.DhPsn,
+		&i.DhName,
 		&i.Ic,
 		&i.Sbg,
 		&i.Bu,
@@ -1251,6 +1702,8 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ManagerID,
+		&i.SkipManagerID,
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,
@@ -1259,7 +1712,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
+SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
 FROM users
 WHERE id = ?
 `
@@ -1273,13 +1726,22 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Password,
 		&i.FirstName,
 		&i.LastName,
+		&i.FullName,
 		&i.Email,
 		&i.Role,
 		&i.Cluster,
+		&i.Location,
 		&i.Title,
 		&i.Gender,
 		&i.Band,
 		&i.Grade,
+		&i.EmploymentStatus,
+		&i.IsPsn,
+		&i.IsName,
+		&i.NsPsn,
+		&i.NsName,
+		&i.DhPsn,
+		&i.DhName,
 		&i.Ic,
 		&i.Sbg,
 		&i.Bu,
@@ -1289,6 +1751,8 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ManagerID,
+		&i.SkipManagerID,
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,
@@ -1297,7 +1761,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 }
 
 const getUserByPesNumber = `-- name: GetUserByPesNumber :one
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
+SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
 FROM users
 WHERE pes_number = ?
 `
@@ -1311,13 +1775,22 @@ func (q *Queries) GetUserByPesNumber(ctx context.Context, pesNumber string) (Use
 		&i.Password,
 		&i.FirstName,
 		&i.LastName,
+		&i.FullName,
 		&i.Email,
 		&i.Role,
 		&i.Cluster,
+		&i.Location,
 		&i.Title,
 		&i.Gender,
 		&i.Band,
 		&i.Grade,
+		&i.EmploymentStatus,
+		&i.IsPsn,
+		&i.IsName,
+		&i.NsPsn,
+		&i.NsName,
+		&i.DhPsn,
+		&i.DhName,
 		&i.Ic,
 		&i.Sbg,
 		&i.Bu,
@@ -1327,6 +1800,8 @@ func (q *Queries) GetUserByPesNumber(ctx context.Context, pesNumber string) (Use
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ManagerID,
+		&i.SkipManagerID,
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,
@@ -1335,7 +1810,7 @@ func (q *Queries) GetUserByPesNumber(ctx context.Context, pesNumber string) (Use
 }
 
 const listActiveTrainings = `-- name: ListActiveTrainings :many
-SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
+SELECT id, title, description, category, instructor_name, learning_outcomes, month_tag, start_date, end_date, start_time, end_time, timezone, format, registration_deadline, max_capacity, target_clusters, prerequisites_url, venue_cost, professional_fees, stationary_cost, status, location, virtual_link, pre_read_url, deadline_days, is_active, created_at, updated_at, created_by_id, hr_program_id, mapped_category, mode_of_delivery, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id FROM trainings
 WHERE is_active = 1
 ORDER BY start_date ASC
 `
@@ -1354,24 +1829,75 @@ func (q *Queries) ListActiveTrainings(ctx context.Context) ([]Training, error) {
 			&i.Title,
 			&i.Description,
 			&i.Category,
+			&i.InstructorName,
+			&i.LearningOutcomes,
+			&i.MonthTag,
 			&i.StartDate,
 			&i.EndDate,
+			&i.StartTime,
+			&i.EndTime,
+			&i.Timezone,
+			&i.Format,
+			&i.RegistrationDeadline,
+			&i.MaxCapacity,
+			&i.TargetClusters,
+			&i.PrerequisitesUrl,
+			&i.VenueCost,
+			&i.ProfessionalFees,
+			&i.StationaryCost,
+			&i.Status,
 			&i.Location,
 			&i.VirtualLink,
-			&i.PreReadUri,
-			&i.CreatedByID,
+			&i.PreReadUrl,
 			&i.DeadlineDays,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CreatedByID,
 			&i.HrProgramID,
 			&i.MappedCategory,
 			&i.ModeOfDelivery,
-			&i.InstructorName,
 			&i.InstitutePartnerName,
 			&i.ProcessOwnerName,
 			&i.ProcessOwnerEmail,
 			&i.DurationManhours,
 			&i.TrainingMandays,
 			&i.FacilityID,
-			&i.IsActive,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCalendarPlans = `-- name: ListCalendarPlans :many
+SELECT id, program_name, mapped_category, target_month, status, actual_training_id, created_at, updated_at FROM training_calendar_plans
+ORDER BY target_month ASC
+`
+
+func (q *Queries) ListCalendarPlans(ctx context.Context) ([]TrainingCalendarPlan, error) {
+	rows, err := q.db.QueryContext(ctx, listCalendarPlans)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TrainingCalendarPlan
+	for rows.Next() {
+		var i TrainingCalendarPlan
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProgramName,
+			&i.MappedCategory,
+			&i.TargetMonth,
+			&i.Status,
+			&i.ActualTrainingID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -1389,7 +1915,7 @@ func (q *Queries) ListActiveTrainings(ctx context.Context) ([]Training, error) {
 }
 
 const listLessonsByCourse = `-- name: ListLessonsByCourse :many
-SELECT l.id, l.title, l.content_type, l.asset_uri, l.rich_text_content, l.duration_minutes, l.sequence_order, l.module_id, l.created_at, l.updated_at FROM lessons l
+SELECT l.id, l.title, l.content_type, l.asset_url, l.rich_text_content, l.duration_minutes, l.sequence_order, l.module_id, l.created_at, l.updated_at FROM lessons l
 JOIN course_modules m ON l.module_id = m.id
 WHERE m.course_id = ?
 ORDER BY m.sequence_order, l.sequence_order
@@ -1408,7 +1934,7 @@ func (q *Queries) ListLessonsByCourse(ctx context.Context, courseID uuid.UUID) (
 			&i.ID,
 			&i.Title,
 			&i.ContentType,
-			&i.AssetUri,
+			&i.AssetUrl,
 			&i.RichTextContent,
 			&i.DurationMinutes,
 			&i.SequenceOrder,
@@ -1429,8 +1955,43 @@ func (q *Queries) ListLessonsByCourse(ctx context.Context, courseID uuid.UUID) (
 	return items, nil
 }
 
+const listManagerAllocationsByManager = `-- name: ListManagerAllocationsByManager :many
+SELECT id, created_at, training_id, course_id, manager_id, assigned_by_id FROM manager_allocations
+WHERE manager_id = ?
+`
+
+func (q *Queries) ListManagerAllocationsByManager(ctx context.Context, managerID uuid.UUID) ([]ManagerAllocation, error) {
+	rows, err := q.db.QueryContext(ctx, listManagerAllocationsByManager, managerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ManagerAllocation
+	for rows.Next() {
+		var i ManagerAllocation
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.TrainingID,
+			&i.CourseID,
+			&i.ManagerID,
+			&i.AssignedByID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listNominationsByFilters = `-- name: ListNominationsByFilters :many
-SELECT n.id, n.status, n.user_id, n.training_id, n.nominated_by_id, n.hr_completion_status, n.prof_fees, n.venue_cost, n.other_cost, n.non_tems_travel, n.non_tems_accommodation, n.total_cost, n.created_at, n.updated_at FROM nominations n
+SELECT n.id, n.status, n.user_id, n.training_id, n.course_id, n.nominated_by_id, n.hr_completion_status, n.prof_fees, n.venue_cost, n.other_cost, n.non_tems_travel, n.non_tems_accommodation, n.total_cost, n.created_at, n.updated_at FROM nominations n
 WHERE
     (COALESCE(?1, '') = '' OR n.status = ?1)
     AND (
@@ -1474,6 +2035,7 @@ func (q *Queries) ListNominationsByFilters(ctx context.Context, arg ListNominati
 			&i.Status,
 			&i.UserID,
 			&i.TrainingID,
+			&i.CourseID,
 			&i.NominatedByID,
 			&i.HrCompletionStatus,
 			&i.ProfFees,
@@ -1499,7 +2061,7 @@ func (q *Queries) ListNominationsByFilters(ctx context.Context, arg ListNominati
 }
 
 const listTrainings = `-- name: ListTrainings :many
-SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
+SELECT id, title, description, category, instructor_name, learning_outcomes, month_tag, start_date, end_date, start_time, end_time, timezone, format, registration_deadline, max_capacity, target_clusters, prerequisites_url, venue_cost, professional_fees, stationary_cost, status, location, virtual_link, pre_read_url, deadline_days, is_active, created_at, updated_at, created_by_id, hr_program_id, mapped_category, mode_of_delivery, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id FROM trainings
 ORDER BY start_date ASC
 `
 
@@ -1517,26 +2079,40 @@ func (q *Queries) ListTrainings(ctx context.Context) ([]Training, error) {
 			&i.Title,
 			&i.Description,
 			&i.Category,
+			&i.InstructorName,
+			&i.LearningOutcomes,
+			&i.MonthTag,
 			&i.StartDate,
 			&i.EndDate,
+			&i.StartTime,
+			&i.EndTime,
+			&i.Timezone,
+			&i.Format,
+			&i.RegistrationDeadline,
+			&i.MaxCapacity,
+			&i.TargetClusters,
+			&i.PrerequisitesUrl,
+			&i.VenueCost,
+			&i.ProfessionalFees,
+			&i.StationaryCost,
+			&i.Status,
 			&i.Location,
 			&i.VirtualLink,
-			&i.PreReadUri,
-			&i.CreatedByID,
+			&i.PreReadUrl,
 			&i.DeadlineDays,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CreatedByID,
 			&i.HrProgramID,
 			&i.MappedCategory,
 			&i.ModeOfDelivery,
-			&i.InstructorName,
 			&i.InstitutePartnerName,
 			&i.ProcessOwnerName,
 			&i.ProcessOwnerEmail,
 			&i.DurationManhours,
 			&i.TrainingMandays,
 			&i.FacilityID,
-			&i.IsActive,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1552,7 +2128,7 @@ func (q *Queries) ListTrainings(ctx context.Context) ([]Training, error) {
 }
 
 const listTrainingsByCategory = `-- name: ListTrainingsByCategory :many
-SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
+SELECT id, title, description, category, instructor_name, learning_outcomes, month_tag, start_date, end_date, start_time, end_time, timezone, format, registration_deadline, max_capacity, target_clusters, prerequisites_url, venue_cost, professional_fees, stationary_cost, status, location, virtual_link, pre_read_url, deadline_days, is_active, created_at, updated_at, created_by_id, hr_program_id, mapped_category, mode_of_delivery, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id FROM trainings
 WHERE category = ? AND is_active = 1
 ORDER BY start_date ASC
 `
@@ -1571,26 +2147,40 @@ func (q *Queries) ListTrainingsByCategory(ctx context.Context, category models.T
 			&i.Title,
 			&i.Description,
 			&i.Category,
+			&i.InstructorName,
+			&i.LearningOutcomes,
+			&i.MonthTag,
 			&i.StartDate,
 			&i.EndDate,
+			&i.StartTime,
+			&i.EndTime,
+			&i.Timezone,
+			&i.Format,
+			&i.RegistrationDeadline,
+			&i.MaxCapacity,
+			&i.TargetClusters,
+			&i.PrerequisitesUrl,
+			&i.VenueCost,
+			&i.ProfessionalFees,
+			&i.StationaryCost,
+			&i.Status,
 			&i.Location,
 			&i.VirtualLink,
-			&i.PreReadUri,
-			&i.CreatedByID,
+			&i.PreReadUrl,
 			&i.DeadlineDays,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CreatedByID,
 			&i.HrProgramID,
 			&i.MappedCategory,
 			&i.ModeOfDelivery,
-			&i.InstructorName,
 			&i.InstitutePartnerName,
 			&i.ProcessOwnerName,
 			&i.ProcessOwnerEmail,
 			&i.DurationManhours,
 			&i.TrainingMandays,
 			&i.FacilityID,
-			&i.IsActive,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1606,7 +2196,7 @@ func (q *Queries) ListTrainingsByCategory(ctx context.Context, category models.T
 }
 
 const listUpcomingTrainings = `-- name: ListUpcomingTrainings :many
-SELECT id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at FROM trainings
+SELECT id, title, description, category, instructor_name, learning_outcomes, month_tag, start_date, end_date, start_time, end_time, timezone, format, registration_deadline, max_capacity, target_clusters, prerequisites_url, venue_cost, professional_fees, stationary_cost, status, location, virtual_link, pre_read_url, deadline_days, is_active, created_at, updated_at, created_by_id, hr_program_id, mapped_category, mode_of_delivery, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id FROM trainings
 WHERE start_date > CURRENT_TIMESTAMP AND is_active = 1
 ORDER BY start_date ASC
 `
@@ -1625,26 +2215,40 @@ func (q *Queries) ListUpcomingTrainings(ctx context.Context) ([]Training, error)
 			&i.Title,
 			&i.Description,
 			&i.Category,
+			&i.InstructorName,
+			&i.LearningOutcomes,
+			&i.MonthTag,
 			&i.StartDate,
 			&i.EndDate,
+			&i.StartTime,
+			&i.EndTime,
+			&i.Timezone,
+			&i.Format,
+			&i.RegistrationDeadline,
+			&i.MaxCapacity,
+			&i.TargetClusters,
+			&i.PrerequisitesUrl,
+			&i.VenueCost,
+			&i.ProfessionalFees,
+			&i.StationaryCost,
+			&i.Status,
 			&i.Location,
 			&i.VirtualLink,
-			&i.PreReadUri,
-			&i.CreatedByID,
+			&i.PreReadUrl,
 			&i.DeadlineDays,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CreatedByID,
 			&i.HrProgramID,
 			&i.MappedCategory,
 			&i.ModeOfDelivery,
-			&i.InstructorName,
 			&i.InstitutePartnerName,
 			&i.ProcessOwnerName,
 			&i.ProcessOwnerEmail,
 			&i.DurationManhours,
 			&i.TrainingMandays,
 			&i.FacilityID,
-			&i.IsActive,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1660,7 +2264,7 @@ func (q *Queries) ListUpcomingTrainings(ctx context.Context) ([]Training, error)
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
+SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
 FROM users
 ORDER BY first_name, last_name
 `
@@ -1680,13 +2284,22 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.Password,
 			&i.FirstName,
 			&i.LastName,
+			&i.FullName,
 			&i.Email,
 			&i.Role,
 			&i.Cluster,
+			&i.Location,
 			&i.Title,
 			&i.Gender,
 			&i.Band,
 			&i.Grade,
+			&i.EmploymentStatus,
+			&i.IsPsn,
+			&i.IsName,
+			&i.NsPsn,
+			&i.NsName,
+			&i.DhPsn,
+			&i.DhName,
 			&i.Ic,
 			&i.Sbg,
 			&i.Bu,
@@ -1696,6 +2309,8 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ManagerID,
+			&i.SkipManagerID,
 			&i.IsID,
 			&i.NsID,
 			&i.DhID,
@@ -1718,7 +2333,7 @@ UPDATE nominations SET
     status = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, status, user_id, training_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at
+RETURNING id, status, user_id, training_id, course_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at
 `
 
 type UpdateNominationStatusParams struct {
@@ -1734,6 +2349,7 @@ func (q *Queries) UpdateNominationStatus(ctx context.Context, arg UpdateNominati
 		&i.Status,
 		&i.UserID,
 		&i.TrainingID,
+		&i.CourseID,
 		&i.NominatedByID,
 		&i.HrCompletionStatus,
 		&i.ProfFees,
@@ -1753,45 +2369,73 @@ UPDATE trainings SET
     title = COALESCE(?1, title),
     description = COALESCE(?2, description),
     category = COALESCE(NULLIF(?3, ''), category),
-    start_date = COALESCE(?4, start_date),
-    end_date = COALESCE(?5, end_date),
-    location = COALESCE(?6, location),
-    virtual_link = COALESCE(?7, virtual_link),
-    pre_read_uri = COALESCE(?8, pre_read_uri),
-    deadline_days = COALESCE(?9, deadline_days),
-    mapped_category = COALESCE(?10, mapped_category),
+    instructor_name = COALESCE(?4, instructor_name),
+    learning_outcomes = COALESCE(?5, learning_outcomes),
+    month_tag = COALESCE(?6, month_tag),
+    start_date = COALESCE(?7, start_date),
+    end_date = COALESCE(?8, end_date),
+    start_time = COALESCE(?9, start_time),
+    end_time = COALESCE(?10, end_time),
+    timezone = COALESCE(?11, timezone),
+    format = COALESCE(?12, format),
+    registration_deadline = COALESCE(?13, registration_deadline),
+    max_capacity = COALESCE(?14, max_capacity),
+    target_clusters = COALESCE(?15, target_clusters),
+    prerequisites_url = COALESCE(?16, prerequisites_url),
+    venue_cost = COALESCE(?17, venue_cost),
+    professional_fees = COALESCE(?18, professional_fees),
+    stationary_cost = COALESCE(?19, stationary_cost),
+    status = COALESCE(?20, status),
+    location = COALESCE(?21, location),
+    virtual_link = COALESCE(?22, virtual_link),
+    pre_read_url = COALESCE(?23, pre_read_url),
+    deadline_days = COALESCE(?24, deadline_days),
+    mapped_category = COALESCE(?25, mapped_category),
     mode_of_delivery
-    = COALESCE(NULLIF(?11, ''), mode_of_delivery),
-    instructor_name = COALESCE(?12, instructor_name),
+    = COALESCE(NULLIF(?26, ''), mode_of_delivery),
     institute_partner_name
-    = COALESCE(?13, institute_partner_name),
+    = COALESCE(?27, institute_partner_name),
     process_owner_name
-    = COALESCE(?14, process_owner_name),
+    = COALESCE(?28, process_owner_name),
     process_owner_email
-    = COALESCE(?15, process_owner_email),
+    = COALESCE(?29, process_owner_email),
     duration_manhours
-    = COALESCE(?16, duration_manhours),
+    = COALESCE(?30, duration_manhours),
     training_mandays
-    = COALESCE(?17, training_mandays),
-    is_active = COALESCE(?18, is_active),
+    = COALESCE(?31, training_mandays),
+    is_active = COALESCE(?32, is_active),
     updated_at = CURRENT_TIMESTAMP
-WHERE id = ?19
-RETURNING id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at
+WHERE id = ?33
+RETURNING id, title, description, category, instructor_name, learning_outcomes, month_tag, start_date, end_date, start_time, end_time, timezone, format, registration_deadline, max_capacity, target_clusters, prerequisites_url, venue_cost, professional_fees, stationary_cost, status, location, virtual_link, pre_read_url, deadline_days, is_active, created_at, updated_at, created_by_id, hr_program_id, mapped_category, mode_of_delivery, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id
 `
 
 type UpdateTrainingParams struct {
 	Title                sql.NullString  `json:"title"`
 	Description          sql.NullString  `json:"description"`
 	Category             interface{}     `json:"category"`
+	InstructorName       sql.NullString  `json:"instructor_name"`
+	LearningOutcomes     sql.NullString  `json:"learning_outcomes"`
+	MonthTag             sql.NullString  `json:"month_tag"`
 	StartDate            sql.NullTime    `json:"start_date"`
 	EndDate              sql.NullTime    `json:"end_date"`
+	StartTime            sql.NullString  `json:"start_time"`
+	EndTime              sql.NullString  `json:"end_time"`
+	Timezone             sql.NullString  `json:"timezone"`
+	Format               sql.NullString  `json:"format"`
+	RegistrationDeadline sql.NullTime    `json:"registration_deadline"`
+	MaxCapacity          sql.NullInt64   `json:"max_capacity"`
+	TargetClusters       sql.NullString  `json:"target_clusters"`
+	PrerequisitesUrl     sql.NullString  `json:"prerequisites_url"`
+	VenueCost            sql.NullInt64   `json:"venue_cost"`
+	ProfessionalFees     sql.NullInt64   `json:"professional_fees"`
+	StationaryCost       sql.NullInt64   `json:"stationary_cost"`
+	Status               sql.NullString  `json:"status"`
 	Location             sql.NullString  `json:"location"`
 	VirtualLink          sql.NullString  `json:"virtual_link"`
-	PreReadUri           sql.NullString  `json:"pre_read_uri"`
+	PreReadUrl           sql.NullString  `json:"pre_read_url"`
 	DeadlineDays         sql.NullInt64   `json:"deadline_days"`
 	MappedCategory       sql.NullString  `json:"mapped_category"`
 	ModeOfDelivery       interface{}     `json:"mode_of_delivery"`
-	InstructorName       sql.NullString  `json:"instructor_name"`
 	InstitutePartnerName sql.NullString  `json:"institute_partner_name"`
 	ProcessOwnerName     sql.NullString  `json:"process_owner_name"`
 	ProcessOwnerEmail    sql.NullString  `json:"process_owner_email"`
@@ -1806,15 +2450,29 @@ func (q *Queries) UpdateTraining(ctx context.Context, arg UpdateTrainingParams) 
 		arg.Title,
 		arg.Description,
 		arg.Category,
+		arg.InstructorName,
+		arg.LearningOutcomes,
+		arg.MonthTag,
 		arg.StartDate,
 		arg.EndDate,
+		arg.StartTime,
+		arg.EndTime,
+		arg.Timezone,
+		arg.Format,
+		arg.RegistrationDeadline,
+		arg.MaxCapacity,
+		arg.TargetClusters,
+		arg.PrerequisitesUrl,
+		arg.VenueCost,
+		arg.ProfessionalFees,
+		arg.StationaryCost,
+		arg.Status,
 		arg.Location,
 		arg.VirtualLink,
-		arg.PreReadUri,
+		arg.PreReadUrl,
 		arg.DeadlineDays,
 		arg.MappedCategory,
 		arg.ModeOfDelivery,
-		arg.InstructorName,
 		arg.InstitutePartnerName,
 		arg.ProcessOwnerName,
 		arg.ProcessOwnerEmail,
@@ -1829,26 +2487,40 @@ func (q *Queries) UpdateTraining(ctx context.Context, arg UpdateTrainingParams) 
 		&i.Title,
 		&i.Description,
 		&i.Category,
+		&i.InstructorName,
+		&i.LearningOutcomes,
+		&i.MonthTag,
 		&i.StartDate,
 		&i.EndDate,
+		&i.StartTime,
+		&i.EndTime,
+		&i.Timezone,
+		&i.Format,
+		&i.RegistrationDeadline,
+		&i.MaxCapacity,
+		&i.TargetClusters,
+		&i.PrerequisitesUrl,
+		&i.VenueCost,
+		&i.ProfessionalFees,
+		&i.StationaryCost,
+		&i.Status,
 		&i.Location,
 		&i.VirtualLink,
-		&i.PreReadUri,
-		&i.CreatedByID,
+		&i.PreReadUrl,
 		&i.DeadlineDays,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CreatedByID,
 		&i.HrProgramID,
 		&i.MappedCategory,
 		&i.ModeOfDelivery,
-		&i.InstructorName,
 		&i.InstitutePartnerName,
 		&i.ProcessOwnerName,
 		&i.ProcessOwnerEmail,
 		&i.DurationManhours,
 		&i.TrainingMandays,
 		&i.FacilityID,
-		&i.IsActive,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -1857,29 +2529,53 @@ const updateUser = `-- name: UpdateUser :one
 UPDATE users SET
     first_name = COALESCE(?2, first_name),
     last_name = COALESCE(?3, last_name),
-    title = COALESCE(?4, title),
-    department = COALESCE(?5, department),
-    base_location = COALESCE(?6, base_location)
+    full_name = COALESCE(?4, full_name),
+    title = COALESCE(?5, title),
+    department = COALESCE(?6, department),
+    base_location = COALESCE(?7, base_location),
+    location = COALESCE(?8, location),
+    employment_status = COALESCE(?9, employment_status),
+    manager_id = COALESCE(?10, manager_id),
+    skip_manager_id = COALESCE(?11, skip_manager_id),
+    is_id = COALESCE(?12, is_id),
+    ns_id = COALESCE(?13, ns_id),
+    dh_id = COALESCE(?14, dh_id)
 WHERE id = ?
-RETURNING id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
+RETURNING id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
 `
 
 type UpdateUserParams struct {
-	FirstName    sql.NullString `json:"first_name"`
-	LastName     sql.NullString `json:"last_name"`
-	Title        sql.NullString `json:"title"`
-	Department   sql.NullString `json:"department"`
-	BaseLocation sql.NullString `json:"base_location"`
-	ID           uuid.UUID      `json:"id"`
+	FirstName        sql.NullString `json:"first_name"`
+	LastName         sql.NullString `json:"last_name"`
+	FullName         sql.NullString `json:"full_name"`
+	Title            sql.NullString `json:"title"`
+	Department       sql.NullString `json:"department"`
+	BaseLocation     sql.NullString `json:"base_location"`
+	Location         sql.NullString `json:"location"`
+	EmploymentStatus sql.NullString `json:"employment_status"`
+	ManagerID        uuid.NullUUID  `json:"manager_id"`
+	SkipManagerID    uuid.NullUUID  `json:"skip_manager_id"`
+	IsID             uuid.NullUUID  `json:"is_id"`
+	NsID             uuid.NullUUID  `json:"ns_id"`
+	DhID             uuid.NullUUID  `json:"dh_id"`
+	ID               uuid.UUID      `json:"id"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, updateUser,
 		arg.FirstName,
 		arg.LastName,
+		arg.FullName,
 		arg.Title,
 		arg.Department,
 		arg.BaseLocation,
+		arg.Location,
+		arg.EmploymentStatus,
+		arg.ManagerID,
+		arg.SkipManagerID,
+		arg.IsID,
+		arg.NsID,
+		arg.DhID,
 		arg.ID,
 	)
 	var i User
@@ -1889,13 +2585,22 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.Password,
 		&i.FirstName,
 		&i.LastName,
+		&i.FullName,
 		&i.Email,
 		&i.Role,
 		&i.Cluster,
+		&i.Location,
 		&i.Title,
 		&i.Gender,
 		&i.Band,
 		&i.Grade,
+		&i.EmploymentStatus,
+		&i.IsPsn,
+		&i.IsName,
+		&i.NsPsn,
+		&i.NsName,
+		&i.DhPsn,
+		&i.DhName,
 		&i.Ic,
 		&i.Sbg,
 		&i.Bu,
@@ -1905,6 +2610,8 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ManagerID,
+		&i.SkipManagerID,
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,
@@ -1929,8 +2636,8 @@ func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusPara
 
 const upsertCourse = `-- name: UpsertCourse :one
 INSERT INTO courses (
-    id, title, description, author_id, cover_image_uri, status,
-    category, estimated_durations, learning_outcomes, is_strict_sequencing,
+    id, title, description, author_id, cover_image_url, status,
+    category, estimated_duration, learning_outcomes, is_strict_sequencing,
     version, published_at
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
@@ -1940,13 +2647,13 @@ ON CONFLICT (title) DO UPDATE SET
     author_id = excluded.author_id,
     status = excluded.status,
     category = excluded.category,
-    estimated_durations = excluded.estimated_durations,
+    estimated_duration = excluded.estimated_duration,
     learning_outcomes = excluded.learning_outcomes,
     is_strict_sequencing = excluded.is_strict_sequencing,
     version = excluded.version,
     published_at = excluded.published_at,
     updated_at = CURRENT_TIMESTAMP
-RETURNING id, title, description, author_id, cover_image_uri, status, category, estimated_durations, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at
+RETURNING id, title, description, author_id, cover_image_url, status, category, estimated_duration, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at
 `
 
 type UpsertCourseParams struct {
@@ -1954,10 +2661,10 @@ type UpsertCourseParams struct {
 	Title              string                  `json:"title"`
 	Description        sql.NullString          `json:"description"`
 	AuthorID           uuid.NullUUID           `json:"author_id"`
-	CoverImageUri      sql.NullString          `json:"cover_image_uri"`
+	CoverImageUrl      sql.NullString          `json:"cover_image_url"`
 	Status             models.CourseStatus     `json:"status"`
 	Category           models.TrainingCategory `json:"category"`
-	EstimatedDurations sql.NullInt64           `json:"estimated_durations"`
+	EstimatedDuration  sql.NullInt64           `json:"estimated_duration"`
 	LearningOutcomes   string                  `json:"learning_outcomes"`
 	IsStrictSequencing bool                    `json:"is_strict_sequencing"`
 	Version            int64                   `json:"version"`
@@ -1970,10 +2677,10 @@ func (q *Queries) UpsertCourse(ctx context.Context, arg UpsertCourseParams) (Cou
 		arg.Title,
 		arg.Description,
 		arg.AuthorID,
-		arg.CoverImageUri,
+		arg.CoverImageUrl,
 		arg.Status,
 		arg.Category,
-		arg.EstimatedDurations,
+		arg.EstimatedDuration,
 		arg.LearningOutcomes,
 		arg.IsStrictSequencing,
 		arg.Version,
@@ -1985,10 +2692,10 @@ func (q *Queries) UpsertCourse(ctx context.Context, arg UpsertCourseParams) (Cou
 		&i.Title,
 		&i.Description,
 		&i.AuthorID,
-		&i.CoverImageUri,
+		&i.CoverImageUrl,
 		&i.Status,
 		&i.Category,
-		&i.EstimatedDurations,
+		&i.EstimatedDuration,
 		&i.LearningOutcomes,
 		&i.IsStrictSequencing,
 		&i.Version,
@@ -2097,26 +2804,26 @@ func (q *Queries) UpsertCourseModule(ctx context.Context, arg UpsertCourseModule
 
 const upsertLesson = `-- name: UpsertLesson :one
 INSERT INTO lessons (
-    id, title, content_type, asset_uri, rich_text_content,
+    id, title, content_type, asset_url, rich_text_content,
     duration_minutes, sequence_order, module_id
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?, ?
 )
 ON CONFLICT (module_id, title) DO UPDATE SET
     content_type = excluded.content_type,
-    asset_uri = excluded.asset_uri,
+    asset_url = excluded.asset_url,
     rich_text_content = excluded.rich_text_content,
     duration_minutes = excluded.duration_minutes,
     sequence_order = excluded.sequence_order,
     updated_at = CURRENT_TIMESTAMP
-RETURNING id, title, content_type, asset_uri, rich_text_content, duration_minutes, sequence_order, module_id, created_at, updated_at
+RETURNING id, title, content_type, asset_url, rich_text_content, duration_minutes, sequence_order, module_id, created_at, updated_at
 `
 
 type UpsertLessonParams struct {
 	ID              uuid.UUID                `json:"id"`
 	Title           string                   `json:"title"`
 	ContentType     models.LessonContentType `json:"content_type"`
-	AssetUri        sql.NullString           `json:"asset_uri"`
+	AssetUrl        sql.NullString           `json:"asset_url"`
 	RichTextContent sql.NullString           `json:"rich_text_content"`
 	DurationMinutes sql.NullInt64            `json:"duration_minutes"`
 	SequenceOrder   int64                    `json:"sequence_order"`
@@ -2128,7 +2835,7 @@ func (q *Queries) UpsertLesson(ctx context.Context, arg UpsertLessonParams) (Les
 		arg.ID,
 		arg.Title,
 		arg.ContentType,
-		arg.AssetUri,
+		arg.AssetUrl,
 		arg.RichTextContent,
 		arg.DurationMinutes,
 		arg.SequenceOrder,
@@ -2139,7 +2846,7 @@ func (q *Queries) UpsertLesson(ctx context.Context, arg UpsertLessonParams) (Les
 		&i.ID,
 		&i.Title,
 		&i.ContentType,
-		&i.AssetUri,
+		&i.AssetUrl,
 		&i.RichTextContent,
 		&i.DurationMinutes,
 		&i.SequenceOrder,
@@ -2197,11 +2904,11 @@ func (q *Queries) UpsertLessonProgress(ctx context.Context, arg UpsertLessonProg
 
 const upsertNomination = `-- name: UpsertNomination :one
 INSERT INTO nominations (
-    id, status, user_id, training_id, nominated_by_id,
+    id, status, user_id, training_id, course_id, nominated_by_id,
     hr_completion_status, prof_fees, venue_cost, other_cost,
     non_tems_travel, non_tems_accommodation, total_cost
 ) VALUES (
-    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?, ?,
     ?, ?, ?, ?,
     ?, ?, ?
 )
@@ -2209,22 +2916,23 @@ ON CONFLICT (user_id, training_id) DO UPDATE SET
     status = excluded.status,
     nominated_by_id = excluded.nominated_by_id,
     updated_at = CURRENT_TIMESTAMP
-RETURNING id, status, user_id, training_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at
+RETURNING id, status, user_id, training_id, course_id, nominated_by_id, hr_completion_status, prof_fees, venue_cost, other_cost, non_tems_travel, non_tems_accommodation, total_cost, created_at, updated_at
 `
 
 type UpsertNominationParams struct {
 	ID                   uuid.UUID               `json:"id"`
 	Status               models.NominationStatus `json:"status"`
 	UserID               uuid.UUID               `json:"user_id"`
-	TrainingID           uuid.UUID               `json:"training_id"`
+	TrainingID           uuid.NullUUID           `json:"training_id"`
+	CourseID             uuid.NullUUID           `json:"course_id"`
 	NominatedByID        uuid.UUID               `json:"nominated_by_id"`
 	HrCompletionStatus   sql.NullString          `json:"hr_completion_status"`
-	ProfFees             sql.NullFloat64         `json:"prof_fees"`
-	VenueCost            sql.NullFloat64         `json:"venue_cost"`
-	OtherCost            sql.NullFloat64         `json:"other_cost"`
-	NonTemsTravel        sql.NullFloat64         `json:"non_tems_travel"`
-	NonTemsAccommodation sql.NullFloat64         `json:"non_tems_accommodation"`
-	TotalCost            sql.NullFloat64         `json:"total_cost"`
+	ProfFees             sql.NullInt64           `json:"prof_fees"`
+	VenueCost            sql.NullInt64           `json:"venue_cost"`
+	OtherCost            sql.NullInt64           `json:"other_cost"`
+	NonTemsTravel        sql.NullInt64           `json:"non_tems_travel"`
+	NonTemsAccommodation sql.NullInt64           `json:"non_tems_accommodation"`
+	TotalCost            sql.NullInt64           `json:"total_cost"`
 }
 
 func (q *Queries) UpsertNomination(ctx context.Context, arg UpsertNominationParams) (Nomination, error) {
@@ -2233,6 +2941,7 @@ func (q *Queries) UpsertNomination(ctx context.Context, arg UpsertNominationPara
 		arg.Status,
 		arg.UserID,
 		arg.TrainingID,
+		arg.CourseID,
 		arg.NominatedByID,
 		arg.HrCompletionStatus,
 		arg.ProfFees,
@@ -2248,6 +2957,7 @@ func (q *Queries) UpsertNomination(ctx context.Context, arg UpsertNominationPara
 		&i.Status,
 		&i.UserID,
 		&i.TrainingID,
+		&i.CourseID,
 		&i.NominatedByID,
 		&i.HrCompletionStatus,
 		&i.ProfFees,
@@ -2264,14 +2974,22 @@ func (q *Queries) UpsertNomination(ctx context.Context, arg UpsertNominationPara
 
 const upsertTraining = `-- name: UpsertTraining :one
 INSERT INTO trainings (
-    id, title, description, category, start_date, end_date,
-    location, virtual_link, pre_read_uri, created_by_id,
-    deadline_days, hr_program_id, mapped_category, mode_of_delivery,
-    instructor_name, institute_partner_name, process_owner_name,
+    id, title, description, category, instructor_name,
+    learning_outcomes, month_tag, start_date, end_date,
+    start_time, end_time, timezone, format,
+    registration_deadline, max_capacity, target_clusters,
+    prerequisites_url, venue_cost, professional_fees, stationary_cost,
+    status, location, virtual_link, pre_read_url,
+    deadline_days, created_by_id, hr_program_id, mapped_category,
+    mode_of_delivery, institute_partner_name, process_owner_name,
     process_owner_email, duration_manhours, training_mandays,
     facility_id
 ) VALUES (
-    ?, ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, ?,
+    ?, ?, ?, ?,
     ?, ?, ?, ?,
     ?, ?, ?, ?,
     ?, ?, ?,
@@ -2281,14 +2999,29 @@ INSERT INTO trainings (
 ON CONFLICT (title) DO UPDATE SET
     description = excluded.description,
     category = excluded.category,
+    instructor_name = excluded.instructor_name,
+    learning_outcomes = excluded.learning_outcomes,
+    month_tag = excluded.month_tag,
     start_date = excluded.start_date,
     end_date = excluded.end_date,
+    start_time = excluded.start_time,
+    end_time = excluded.end_time,
+    timezone = excluded.timezone,
+    format = excluded.format,
+    registration_deadline = excluded.registration_deadline,
+    max_capacity = excluded.max_capacity,
+    target_clusters = excluded.target_clusters,
+    prerequisites_url = excluded.prerequisites_url,
+    venue_cost = excluded.venue_cost,
+    professional_fees = excluded.professional_fees,
+    stationary_cost = excluded.stationary_cost,
+    status = excluded.status,
     location = excluded.location,
     virtual_link = excluded.virtual_link,
-    pre_read_uri = excluded.pre_read_uri,
+    pre_read_url = excluded.pre_read_url,
     deadline_days = excluded.deadline_days,
     updated_at = CURRENT_TIMESTAMP
-RETURNING id, title, description, category, start_date, end_date, location, virtual_link, pre_read_uri, created_by_id, deadline_days, hr_program_id, mapped_category, mode_of_delivery, instructor_name, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id, is_active, created_at, updated_at
+RETURNING id, title, description, category, instructor_name, learning_outcomes, month_tag, start_date, end_date, start_time, end_time, timezone, format, registration_deadline, max_capacity, target_clusters, prerequisites_url, venue_cost, professional_fees, stationary_cost, status, location, virtual_link, pre_read_url, deadline_days, is_active, created_at, updated_at, created_by_id, hr_program_id, mapped_category, mode_of_delivery, institute_partner_name, process_owner_name, process_owner_email, duration_manhours, training_mandays, facility_id
 `
 
 type UpsertTrainingParams struct {
@@ -2296,17 +3029,31 @@ type UpsertTrainingParams struct {
 	Title                string                  `json:"title"`
 	Description          sql.NullString          `json:"description"`
 	Category             models.TrainingCategory `json:"category"`
+	InstructorName       sql.NullString          `json:"instructor_name"`
+	LearningOutcomes     sql.NullString          `json:"learning_outcomes"`
+	MonthTag             sql.NullString          `json:"month_tag"`
 	StartDate            time.Time               `json:"start_date"`
 	EndDate              time.Time               `json:"end_date"`
+	StartTime            sql.NullString          `json:"start_time"`
+	EndTime              sql.NullString          `json:"end_time"`
+	Timezone             sql.NullString          `json:"timezone"`
+	Format               sql.NullString          `json:"format"`
+	RegistrationDeadline sql.NullTime            `json:"registration_deadline"`
+	MaxCapacity          sql.NullInt64           `json:"max_capacity"`
+	TargetClusters       sql.NullString          `json:"target_clusters"`
+	PrerequisitesUrl     sql.NullString          `json:"prerequisites_url"`
+	VenueCost            sql.NullInt64           `json:"venue_cost"`
+	ProfessionalFees     sql.NullInt64           `json:"professional_fees"`
+	StationaryCost       sql.NullInt64           `json:"stationary_cost"`
+	Status               string                  `json:"status"`
 	Location             sql.NullString          `json:"location"`
 	VirtualLink          sql.NullString          `json:"virtual_link"`
-	PreReadUri           sql.NullString          `json:"pre_read_uri"`
-	CreatedByID          uuid.UUID               `json:"created_by_id"`
+	PreReadUrl           sql.NullString          `json:"pre_read_url"`
 	DeadlineDays         int64                   `json:"deadline_days"`
+	CreatedByID          uuid.UUID               `json:"created_by_id"`
 	HrProgramID          uuid.UUID               `json:"hr_program_id"`
-	MappedCategory       string                  `json:"mapped_category"`
+	MappedCategory       sql.NullString          `json:"mapped_category"`
 	ModeOfDelivery       models.DeliveryMode     `json:"mode_of_delivery"`
-	InstructorName       string                  `json:"instructor_name"`
 	InstitutePartnerName sql.NullString          `json:"institute_partner_name"`
 	ProcessOwnerName     sql.NullString          `json:"process_owner_name"`
 	ProcessOwnerEmail    sql.NullString          `json:"process_owner_email"`
@@ -2321,17 +3068,31 @@ func (q *Queries) UpsertTraining(ctx context.Context, arg UpsertTrainingParams) 
 		arg.Title,
 		arg.Description,
 		arg.Category,
+		arg.InstructorName,
+		arg.LearningOutcomes,
+		arg.MonthTag,
 		arg.StartDate,
 		arg.EndDate,
+		arg.StartTime,
+		arg.EndTime,
+		arg.Timezone,
+		arg.Format,
+		arg.RegistrationDeadline,
+		arg.MaxCapacity,
+		arg.TargetClusters,
+		arg.PrerequisitesUrl,
+		arg.VenueCost,
+		arg.ProfessionalFees,
+		arg.StationaryCost,
+		arg.Status,
 		arg.Location,
 		arg.VirtualLink,
-		arg.PreReadUri,
-		arg.CreatedByID,
+		arg.PreReadUrl,
 		arg.DeadlineDays,
+		arg.CreatedByID,
 		arg.HrProgramID,
 		arg.MappedCategory,
 		arg.ModeOfDelivery,
-		arg.InstructorName,
 		arg.InstitutePartnerName,
 		arg.ProcessOwnerName,
 		arg.ProcessOwnerEmail,
@@ -2345,75 +3106,127 @@ func (q *Queries) UpsertTraining(ctx context.Context, arg UpsertTrainingParams) 
 		&i.Title,
 		&i.Description,
 		&i.Category,
+		&i.InstructorName,
+		&i.LearningOutcomes,
+		&i.MonthTag,
 		&i.StartDate,
 		&i.EndDate,
+		&i.StartTime,
+		&i.EndTime,
+		&i.Timezone,
+		&i.Format,
+		&i.RegistrationDeadline,
+		&i.MaxCapacity,
+		&i.TargetClusters,
+		&i.PrerequisitesUrl,
+		&i.VenueCost,
+		&i.ProfessionalFees,
+		&i.StationaryCost,
+		&i.Status,
 		&i.Location,
 		&i.VirtualLink,
-		&i.PreReadUri,
-		&i.CreatedByID,
+		&i.PreReadUrl,
 		&i.DeadlineDays,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CreatedByID,
 		&i.HrProgramID,
 		&i.MappedCategory,
 		&i.ModeOfDelivery,
-		&i.InstructorName,
 		&i.InstitutePartnerName,
 		&i.ProcessOwnerName,
 		&i.ProcessOwnerEmail,
 		&i.DurationManhours,
 		&i.TrainingMandays,
 		&i.FacilityID,
-		&i.IsActive,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const upsertUser = `-- name: UpsertUser :one
 INSERT INTO users (
-    id, pes_number, password, first_name, last_name,
-    email, role, cluster, title, gender, band, grade,
+    id, pes_number, password, first_name, last_name, full_name,
+    email, role, cluster, location, title, gender, band, grade,
+    employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name,
     ic, sbg, bu, segment, department, base_location,
-    is_id, ns_id, dh_id
+    manager_id, skip_manager_id, is_id, ns_id, dh_id
 ) VALUES (
-    ?, ?, ?, ?, ?,
-    ?, ?, ?, ?, ?, ?, ?,
-    ?, ?, ?, ?, ?, ?,
-    ?, ?, ?
+    ?1, ?2, ?3, ?4, ?5, ?6,
+    ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14,
+    ?15, ?16, ?17, ?18, ?19, ?20, ?21,
+    ?22, ?23, ?24, ?25, ?26, ?27,
+    NULLIF(?28, '00000000-0000-0000-0000-000000000000'), 
+    NULLIF(?29, '00000000-0000-0000-0000-000000000000'), 
+    ?30, ?31, ?32
 )
 ON CONFLICT (pes_number) DO UPDATE SET
     password = excluded.password,
     first_name = excluded.first_name,
     last_name = excluded.last_name,
+    full_name = excluded.full_name,
     email = excluded.email,
     role = excluded.role,
     cluster = excluded.cluster,
+    location = excluded.location,
+    title = excluded.title,
+    band = excluded.band,
+    grade = excluded.grade,
+    employment_status = excluded.employment_status,
+    is_psn = excluded.is_psn,
+    is_name = excluded.is_name,
+    ns_psn = excluded.ns_psn,
+    ns_name = excluded.ns_name,
+    dh_psn = excluded.dh_psn,
+    dh_name = excluded.dh_name,
+    ic = excluded.ic,
+    sbg = excluded.sbg,
+    bu = excluded.bu,
+    segment = excluded.segment,
+    department = excluded.department,
+    base_location = excluded.base_location,
+    manager_id = NULLIF(excluded.manager_id, '00000000-0000-0000-0000-000000000000'),
+    skip_manager_id = NULLIF(excluded.skip_manager_id, '00000000-0000-0000-0000-000000000000'),
+    is_id = excluded.is_id,
+    ns_id = excluded.ns_id,
+    dh_id = excluded.dh_id,
     updated_at = CURRENT_TIMESTAMP
-RETURNING id, pes_number, password, first_name, last_name, email, role, cluster, title, gender, band, grade, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, is_id, ns_id, dh_id
+RETURNING id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
 `
 
 type UpsertUserParams struct {
-	ID           uuid.UUID      `json:"id"`
-	PesNumber    string         `json:"pes_number"`
-	Password     string         `json:"password"`
-	FirstName    string         `json:"first_name"`
-	LastName     string         `json:"last_name"`
-	Email        string         `json:"email"`
-	Role         models.Role    `json:"role"`
-	Cluster      sql.NullString `json:"cluster"`
-	Title        string         `json:"title"`
-	Gender       string         `json:"gender"`
-	Band         string         `json:"band"`
-	Grade        string         `json:"grade"`
-	Ic           string         `json:"ic"`
-	Sbg          string         `json:"sbg"`
-	Bu           string         `json:"bu"`
-	Segment      string         `json:"segment"`
-	Department   string         `json:"department"`
-	BaseLocation string         `json:"base_location"`
-	IsID         uuid.NullUUID  `json:"is_id"`
-	NsID         uuid.NullUUID  `json:"ns_id"`
-	DhID         uuid.NullUUID  `json:"dh_id"`
+	ID               uuid.UUID      `json:"id"`
+	PesNumber        string         `json:"pes_number"`
+	Password         string         `json:"password"`
+	FirstName        string         `json:"first_name"`
+	LastName         string         `json:"last_name"`
+	FullName         sql.NullString `json:"full_name"`
+	Email            string         `json:"email"`
+	Role             models.Role    `json:"role"`
+	Cluster          sql.NullString `json:"cluster"`
+	Location         sql.NullString `json:"location"`
+	Title            string         `json:"title"`
+	Gender           string         `json:"gender"`
+	Band             string         `json:"band"`
+	Grade            string         `json:"grade"`
+	EmploymentStatus sql.NullString `json:"employment_status"`
+	IsPsn            sql.NullString `json:"is_psn"`
+	IsName           sql.NullString `json:"is_name"`
+	NsPsn            sql.NullString `json:"ns_psn"`
+	NsName           sql.NullString `json:"ns_name"`
+	DhPsn            sql.NullString `json:"dh_psn"`
+	DhName           sql.NullString `json:"dh_name"`
+	Ic               sql.NullString `json:"ic"`
+	Sbg              sql.NullString `json:"sbg"`
+	Bu               sql.NullString `json:"bu"`
+	Segment          sql.NullString `json:"segment"`
+	Department       sql.NullString `json:"department"`
+	BaseLocation     sql.NullString `json:"base_location"`
+	ManagerID        interface{}    `json:"manager_id"`
+	SkipManagerID    interface{}    `json:"skip_manager_id"`
+	IsID             uuid.NullUUID  `json:"is_id"`
+	NsID             uuid.NullUUID  `json:"ns_id"`
+	DhID             uuid.NullUUID  `json:"dh_id"`
 }
 
 func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, error) {
@@ -2423,19 +3236,30 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 		arg.Password,
 		arg.FirstName,
 		arg.LastName,
+		arg.FullName,
 		arg.Email,
 		arg.Role,
 		arg.Cluster,
+		arg.Location,
 		arg.Title,
 		arg.Gender,
 		arg.Band,
 		arg.Grade,
+		arg.EmploymentStatus,
+		arg.IsPsn,
+		arg.IsName,
+		arg.NsPsn,
+		arg.NsName,
+		arg.DhPsn,
+		arg.DhName,
 		arg.Ic,
 		arg.Sbg,
 		arg.Bu,
 		arg.Segment,
 		arg.Department,
 		arg.BaseLocation,
+		arg.ManagerID,
+		arg.SkipManagerID,
 		arg.IsID,
 		arg.NsID,
 		arg.DhID,
@@ -2447,13 +3271,22 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 		&i.Password,
 		&i.FirstName,
 		&i.LastName,
+		&i.FullName,
 		&i.Email,
 		&i.Role,
 		&i.Cluster,
+		&i.Location,
 		&i.Title,
 		&i.Gender,
 		&i.Band,
 		&i.Grade,
+		&i.EmploymentStatus,
+		&i.IsPsn,
+		&i.IsName,
+		&i.NsPsn,
+		&i.NsName,
+		&i.DhPsn,
+		&i.DhName,
 		&i.Ic,
 		&i.Sbg,
 		&i.Bu,
@@ -2463,6 +3296,8 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ManagerID,
+		&i.SkipManagerID,
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,

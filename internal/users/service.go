@@ -86,12 +86,12 @@ func (s *service) Create(ctx context.Context, usersData []models.CreateUserReque
 				Gender:       userData.Gender,
 				Band:         userData.Band,
 				Grade:        userData.Grade,
-				Ic:           userData.Ic,
-				Sbg:          userData.Sbg,
-				Bu:           userData.Bu,
-				Segment:      userData.Segment,
-				Department:   userData.Department,
-				BaseLocation: userData.BaseLocation,
+				Ic:           sql.NullString{String: userData.Ic, Valid: userData.Ic != ""},
+				Sbg:          sql.NullString{String: userData.Sbg, Valid: userData.Sbg != ""},
+				Bu:           sql.NullString{String: userData.Bu, Valid: userData.Bu != ""},
+				Segment:      sql.NullString{String: userData.Segment, Valid: userData.Segment != ""},
+				Department:   sql.NullString{String: userData.Department, Valid: userData.Department != ""},
+				BaseLocation: sql.NullString{String: userData.BaseLocation, Valid: userData.BaseLocation != ""},
 			}
 
 			// 3. Taking care of nullable
@@ -219,26 +219,74 @@ func (s *service) PermanentlyDeleteUser(ctx context.Context, userID string) erro
 // MapUserToResponse converts db.User to models.UserResponse
 func MapUserToResponse(u db.User) models.UserResponse {
 	resp := models.UserResponse{
-		ID:           u.ID.String(),
-		PesNumber:    u.PesNumber,
-		FirstName:    u.FirstName,
-		LastName:     u.LastName,
-		Email:        u.Email,
-		Role:         u.Role,
-		Title:        u.Title,
-		Gender:       u.Gender,
-		Band:         u.Band,
-		Grade:        u.Grade,
-		Ic:           u.Ic,
-		Sbg:          u.Sbg,
-		Bu:           u.Bu,
-		Segment:      u.Segment,
-		Department:   u.Department,
-		BaseLocation: u.BaseLocation,
+		ID:        u.ID.String(),
+		PesNumber: u.PesNumber,
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+		Email:     u.Email,
+		Role:      u.Role,
+		Title:     u.Title,
+		Gender:    u.Gender,
+		Band:      u.Band,
+		Grade:     u.Grade,
 	}
 
+	if u.FullName.Valid {
+		resp.FullName = &u.FullName.String
+	}
 	if u.Cluster.Valid {
 		resp.Cluster = &u.Cluster.String
+	}
+	if u.Location.Valid {
+		resp.Location = &u.Location.String
+	}
+	if u.EmploymentStatus.Valid {
+		resp.EmploymentStatus = &u.EmploymentStatus.String
+	}
+	if u.IsPsn.Valid {
+		resp.IsPsn = &u.IsPsn.String
+	}
+	if u.IsName.Valid {
+		resp.IsName = &u.IsName.String
+	}
+	if u.NsPsn.Valid {
+		resp.NsPsn = &u.NsPsn.String
+	}
+	if u.NsName.Valid {
+		resp.NsName = &u.NsName.String
+	}
+	if u.DhPsn.Valid {
+		resp.DhPsn = &u.DhPsn.String
+	}
+	if u.DhName.Valid {
+		resp.DhName = &u.DhName.String
+	}
+	if u.Ic.Valid {
+		resp.Ic = &u.Ic.String
+	}
+	if u.Sbg.Valid {
+		resp.Sbg = &u.Sbg.String
+	}
+	if u.Bu.Valid {
+		resp.Bu = &u.Bu.String
+	}
+	if u.Segment.Valid {
+		resp.Segment = &u.Segment.String
+	}
+	if u.Department.Valid {
+		resp.Department = &u.Department.String
+	}
+	if u.BaseLocation.Valid {
+		resp.BaseLocation = &u.BaseLocation.String
+	}
+
+	if u.ManagerID.Valid {
+		id := u.ManagerID.UUID.String()
+		resp.ManagerID = &id
+	}
+	if u.SkipManagerID.Valid {
+		id := u.SkipManagerID.UUID.String()
+		resp.SkipManagerID = &id
 	}
 	if u.IsID.Valid {
 		id := u.IsID.UUID.String()

@@ -14,6 +14,10 @@ sql:
             go_type: "github.com/google/uuid.UUID"
 
           # 2. Specifically override only the OPTIONAL ones to NullUUID
+          - column: "users.manager_id"
+            go_type: "github.com/google/uuid.NullUUID"
+          - column: "users.skip_manager_id"
+            go_type: "github.com/google/uuid.NullUUID"
           - column: "users.is_id"
             go_type: "github.com/google/uuid.NullUUID"
           - column: "users.ns_id"
@@ -27,6 +31,10 @@ sql:
           - column: "course_assignments.assigned_by_id"
             go_type: "github.com/google/uuid.NullUUID"
           - column: "training_calendar_plans.actual_training_id"
+            go_type: "github.com/google/uuid.NullUUID"
+          - column: "nominations.training_id"
+            go_type: "github.com/google/uuid.NullUUID"
+          - column: "nominations.course_id"
             go_type: "github.com/google/uuid.NullUUID"
 
           # 3. All other forrign keys are required

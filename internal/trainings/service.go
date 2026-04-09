@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"slices"
 	"time"
 
 	"go-server/internal/database"
@@ -83,10 +82,7 @@ func (s *service) Get(ctx context.Context, trainingID string) (models.TrainingRe
 func (s *service) GetByCategory(ctx context.Context, category string) ([]models.TrainingResponse, error) {
 	// Validate category
 	trainingCategory := models.TrainingCategory(category)
-	if trainingCategory != models.TrainingTechnical && trainingCategory != models.TrainingBehavioral {
-		return nil, errors.New("invalid training category")
-	}
-
+	// Add other categories if needed
 	trainings, err := s.db.Read().ListTrainingsByCategory(ctx, trainingCategory)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list trainings by category: %w", err)
@@ -140,15 +136,8 @@ func (s *service) Create(ctx context.Context, createdByID string, req models.Cre
 		return models.TrainingResponse{}, errors.New("invalid creator ID format")
 	}
 
-	hrProgramID, err := uuid.Parse(req.HrProgramID)
-	if err != nil {
-		return models.TrainingResponse{}, errors.New("invalid HR program ID format")
-	}
-
-	facilityID, err := uuid.Parse(req.FacilityID)
-	if err != nil {
-		return models.TrainingResponse{}, errors.New("invalid facility ID format")
-	}
+	hrProgramID, _ := uuid.Parse(req.HrProgramID)
+	facilityID, _ := uuid.Parse(req.FacilityID)
 
 	// Parse dates
 	startDate, err := time.Parse(time.RFC3339, req.StartDate)
@@ -163,17 +152,9 @@ func (s *service) Create(ctx context.Context, createdByID string, req models.Cre
 
 	// Validate category
 	category := models.TrainingCategory(req.Category)
-	if category != models.TrainingTechnical && category != models.TrainingBehavioral {
-		return models.TrainingResponse{}, errors.New("invalid training category")
-	}
 
 	// Validate delivery mode
 	modeOfDelivery := models.DeliveryMode(req.ModeOfDelivery)
-	validModes := []models.DeliveryMode{models.InPerson, models.VirtualLink, models.Hybrid, models.Elearning}
-	isValidMode := slices.Contains(validModes, modeOfDelivery)
-	if !isValidMode {
-		return models.TrainingResponse{}, errors.New("invalid mode of delivery")
-	}
 
 	// Build params for database query
 	params := db.CreateTrainingParams{
@@ -185,9 +166,9 @@ func (s *service) Create(ctx context.Context, createdByID string, req models.Cre
 		CreatedByID:    creatorID,
 		DeadlineDays:   req.DeadlineDays,
 		HrProgramID:    hrProgramID,
-		MappedCategory: req.MappedCategory,
+		MappedCategory: sql.NullString{String: req.MappedCategory, Valid: req.MappedCategory != ""},
 		ModeOfDelivery: modeOfDelivery,
-		InstructorName: req.InstructorName,
+		InstructorName: sql.NullString{String: req.InstructorName, Valid: req.InstructorName != ""},
 		FacilityID:     facilityID,
 	}
 
@@ -202,7 +183,7 @@ func (s *service) Create(ctx context.Context, createdByID string, req models.Cre
 		params.VirtualLink = sql.NullString{String: *req.VirtualLink, Valid: true}
 	}
 	if req.PreReadURI != nil {
-		params.PreReadUri = sql.NullString{String: *req.PreReadURI, Valid: true}
+		params.PreReadUrl = sql.NullString{String: *req.PreReadURI, Valid: true}
 	}
 	if req.InstitutePartnerName != nil {
 		params.InstitutePartnerName = sql.NullString{String: *req.InstitutePartnerName, Valid: true}
@@ -249,10 +230,6 @@ func (s *service) Update(ctx context.Context, trainingID string, req models.Upda
 	}
 	if req.Category != nil {
 		category := models.TrainingCategory(*req.Category)
-		if category != models.TrainingTechnical && category != models.TrainingBehavioral {
-			return models.TrainingResponse{}, errors.New("invalid training category")
-		}
-		// We need to set the category as a valid enum
 		params.Category = category
 	}
 	if req.StartDate != nil {
@@ -276,7 +253,7 @@ func (s *service) Update(ctx context.Context, trainingID string, req models.Upda
 		params.VirtualLink = sql.NullString{String: *req.VirtualLink, Valid: true}
 	}
 	if req.PreReadURI != nil {
-		params.PreReadUri = sql.NullString{String: *req.PreReadURI, Valid: true}
+		params.PreReadUrl = sql.NullString{String: *req.PreReadURI, Valid: true}
 	}
 	if req.DeadlineDays != nil {
 		params.DeadlineDays = sql.NullInt64{Int64: *req.DeadlineDays, Valid: true}
@@ -286,11 +263,6 @@ func (s *service) Update(ctx context.Context, trainingID string, req models.Upda
 	}
 	if req.ModeOfDelivery != nil {
 		modeOfDelivery := models.DeliveryMode(*req.ModeOfDelivery)
-		validModes := []models.DeliveryMode{models.InPerson, models.VirtualLink, models.Hybrid, models.Elearning}
-		isValidMode := slices.Contains(validModes, modeOfDelivery)
-		if !isValidMode {
-			return models.TrainingResponse{}, errors.New("invalid mode of delivery")
-		}
 		params.ModeOfDelivery = modeOfDelivery
 	}
 	if req.InstructorName != nil {
@@ -344,25 +316,59 @@ func (s *service) Delete(ctx context.Context, trainingID string) error {
 // MapTrainingToResponse converts db.Training to models.TrainingResponse.
 func MapTrainingToResponse(t db.Training) models.TrainingResponse {
 	resp := models.TrainingResponse{
-		ID:             t.ID.String(),
-		Title:          t.Title,
-		Category:       t.Category,
-		StartDate:      t.StartDate.Format(time.RFC3339),
-		EndDate:        t.EndDate.Format(time.RFC3339),
-		CreatedByID:    t.CreatedByID.String(),
-		DeadlineDays:   t.DeadlineDays,
-		HrProgramID:    t.HrProgramID.String(),
-		MappedCategory: t.MappedCategory,
-		ModeOfDelivery: t.ModeOfDelivery,
-		InstructorName: t.InstructorName,
-		FacilityID:     t.FacilityID.String(),
-		IsActive:       t.IsActive,
-		CreatedAt:      t.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:      t.UpdatedAt.Format(time.RFC3339),
+		ID:               t.ID.String(),
+		Title:            t.Title,
+		Category:         t.Category,
+		StartDate:        t.StartDate.Format(time.RFC3339),
+		EndDate:          t.EndDate.Format(time.RFC3339),
+		CreatedByID:      t.CreatedByID.String(),
+		DeadlineDays:     t.DeadlineDays,
+		VenueCost:        t.VenueCost.Int64,
+		ProfessionalFees: t.ProfessionalFees.Int64,
+		StationaryCost:   t.StationaryCost.Int64,
+		Status:           t.Status,
+		ModeOfDelivery:   t.ModeOfDelivery,
+		IsActive:         t.IsActive,
+		CreatedAt:        t.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:        t.UpdatedAt.Format(time.RFC3339),
 	}
 
 	if t.Description.Valid {
 		resp.Description = &t.Description.String
+	}
+	if t.InstructorName.Valid {
+		resp.InstructorName = &t.InstructorName.String
+	}
+	if t.LearningOutcomes.Valid {
+		resp.LearningOutcomes = &t.LearningOutcomes.String
+	}
+	if t.MonthTag.Valid {
+		resp.MonthTag = &t.MonthTag.String
+	}
+	if t.StartTime.Valid {
+		resp.StartTime = &t.StartTime.String
+	}
+	if t.EndTime.Valid {
+		resp.EndTime = &t.EndTime.String
+	}
+	if t.Timezone.Valid {
+		resp.Timezone = &t.Timezone.String
+	}
+	if t.Format.Valid {
+		resp.Format = &t.Format.String
+	}
+	if t.RegistrationDeadline.Valid {
+		rd := t.RegistrationDeadline.Time.Format(time.RFC3339)
+		resp.RegistrationDeadline = &rd
+	}
+	if t.MaxCapacity.Valid {
+		resp.MaxCapacity = &t.MaxCapacity.Int64
+	}
+	if t.TargetClusters.Valid {
+		resp.TargetClusters = &t.TargetClusters.String
+	}
+	if t.PrerequisitesUrl.Valid {
+		resp.PrerequisitesUrl = &t.PrerequisitesUrl.String
 	}
 	if t.Location.Valid {
 		resp.Location = &t.Location.String
@@ -370,8 +376,15 @@ func MapTrainingToResponse(t db.Training) models.TrainingResponse {
 	if t.VirtualLink.Valid {
 		resp.VirtualLink = &t.VirtualLink.String
 	}
-	if t.PreReadUri.Valid {
-		resp.PreReadURI = &t.PreReadUri.String
+	if t.PreReadUrl.Valid {
+		resp.PreReadUrl = &t.PreReadUrl.String
+	}
+	if t.HrProgramID != uuid.Nil {
+		id := t.HrProgramID.String()
+		resp.HrProgramID = &id
+	}
+	if t.MappedCategory.Valid {
+		resp.MappedCategory = &t.MappedCategory.String
 	}
 	if t.InstitutePartnerName.Valid {
 		resp.InstitutePartnerName = &t.InstitutePartnerName.String
@@ -388,6 +401,10 @@ func MapTrainingToResponse(t db.Training) models.TrainingResponse {
 	if t.TrainingMandays.Valid {
 		resp.TrainingMandays = &t.TrainingMandays.Float64
 	}
+	if t.FacilityID != uuid.Nil {
+		id := t.FacilityID.String()
+		resp.FacilityID = &id
+	}
 
 	return resp
 }
@@ -398,32 +415,42 @@ func MapNominationToResponse(n db.Nomination) models.NominationResponse {
 		ID:            n.ID.String(),
 		Status:        n.Status,
 		UserID:        n.UserID.String(),
-		TrainingID:    n.TrainingID.String(),
 		NominatedByID: n.NominatedByID.String(),
 		CreatedAt:     n.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:     n.UpdatedAt.Format(time.RFC3339),
+	}
+
+	if n.TrainingID.Valid {
+		id := n.TrainingID.UUID.String()
+		resp.TrainingID = id
 	}
 
 	if n.HrCompletionStatus.Valid {
 		resp.HrCompletionStatus = &n.HrCompletionStatus.String
 	}
 	if n.ProfFees.Valid {
-		resp.ProfFees = &n.ProfFees.Float64
+		val := n.ProfFees.Int64
+		resp.ProfFees = &val
 	}
 	if n.VenueCost.Valid {
-		resp.VenueCost = &n.VenueCost.Float64
+		val := n.VenueCost.Int64
+		resp.VenueCost = &val
 	}
 	if n.OtherCost.Valid {
-		resp.OtherCost = &n.OtherCost.Float64
+		val := n.OtherCost.Int64
+		resp.OtherCost = &val
 	}
 	if n.NonTemsTravel.Valid {
-		resp.NonTemsTravel = &n.NonTemsTravel.Float64
+		val := n.NonTemsTravel.Int64
+		resp.NonTemsTravel = &val
 	}
 	if n.NonTemsAccommodation.Valid {
-		resp.NonTemsAccommodation = &n.NonTemsAccommodation.Float64
+		val := n.NonTemsAccommodation.Int64
+		resp.NonTemsAccommodation = &val
 	}
 	if n.TotalCost.Valid {
-		resp.TotalCost = &n.TotalCost.Float64
+		val := n.TotalCost.Int64
+		resp.TotalCost = &val
 	}
 
 	return resp

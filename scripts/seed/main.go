@@ -40,6 +40,15 @@ func main() {
 	}
 	defer conn.Close()
 
+	if _, err := conn.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		log.Printf("Warning: could not enable foreign keys: %v", err)
+	}
+
+	log.Printf("=== DEBUG: Testing connection ===")
+	if err := conn.Ping(); err != nil {
+		log.Fatalf("DB ping failed: %v", err)
+	}
+
 	queries := db.New(conn)
 	ctx := context.Background()
 
@@ -49,12 +58,12 @@ func main() {
 		Gender:       "M",
 		Band:         "B1",
 		Grade:        "G1",
-		Ic:           "IC1",
-		Sbg:          "SBG1",
-		Bu:           "BU1",
-		Segment:      "S1",
-		Department:   "D1",
-		BaseLocation: "Location1",
+		Ic:           sql.NullString{String: "IC1", Valid: true},
+		Sbg:          sql.NullString{String: "SBG1", Valid: true},
+		Bu:           sql.NullString{String: "BU1", Valid: true},
+		Segment:      sql.NullString{String: "S1", Valid: true},
+		Department:   sql.NullString{String: "D1", Valid: true},
+		BaseLocation: sql.NullString{String: "Location1", Valid: true},
 	}
 
 	// ── Users ─────────────────────────────────────────────────────────────────
@@ -81,24 +90,31 @@ func main() {
 		if params.Grade == "" {
 			params.Grade = defaultUserParams.Grade
 		}
-		if params.Ic == "" {
+		if !params.Ic.Valid {
 			params.Ic = defaultUserParams.Ic
 		}
-		if params.Sbg == "" {
+		if !params.Sbg.Valid {
 			params.Sbg = defaultUserParams.Sbg
 		}
-		if params.Bu == "" {
+		if !params.Bu.Valid {
 			params.Bu = defaultUserParams.Bu
 		}
-		if params.Segment == "" {
+		if !params.Segment.Valid {
 			params.Segment = defaultUserParams.Segment
 		}
-		if params.Department == "" {
+		if !params.Department.Valid {
 			params.Department = defaultUserParams.Department
 		}
-		if params.BaseLocation == "" {
+		if !params.BaseLocation.Valid {
 			params.BaseLocation = defaultUserParams.BaseLocation
 		}
+		if params.ManagerID == nil {
+			params.ManagerID = uuid.Nil
+		}
+		if params.SkipManagerID == nil {
+			params.SkipManagerID = uuid.Nil
+		}
+
 		user, err := queries.UpsertUser(ctx, params)
 		if err != nil {
 			log.Fatalf("Failed to upsert user %s: %v", params.PesNumber, err)
@@ -196,8 +212,9 @@ func main() {
 	defaultTrainingParams := db.UpsertTrainingParams{
 		HrProgramID:    uuid.New(),
 		ModeOfDelivery: models.InPerson,
-		InstructorName: "System",
+		InstructorName: sql.NullString{String: "System", Valid: true},
 		CreatedByID:    admin.ID,
+		Status:         "DRAFT",
 	}
 
 	trainingsData := []db.UpsertTrainingParams{
@@ -209,7 +226,7 @@ func main() {
 			StartDate:    future(10),
 			EndDate:      future(11),
 			Location:     sql.NullString{String: "Conference Room A", Valid: true},
-			PreReadUri:   sql.NullString{String: "https://example.com/leadership-prework.pdf", Valid: true},
+			PreReadUrl:   sql.NullString{String: "https://example.com/leadership-prework.pdf", Valid: true},
 			DeadlineDays: 2,
 		},
 		{
@@ -220,7 +237,7 @@ func main() {
 			StartDate:    future(15),
 			EndDate:      future(15),
 			Location:     sql.NullString{String: "Training Lab 2", Valid: true},
-			PreReadUri:   sql.NullString{String: "https://example.com/excel-guide.pdf", Valid: true},
+			PreReadUrl:   sql.NullString{String: "https://example.com/excel-guide.pdf", Valid: true},
 			DeadlineDays: 1,
 		},
 		{
@@ -241,7 +258,7 @@ func main() {
 			StartDate:    future(5),
 			EndDate:      future(5),
 			Location:     sql.NullString{String: "Auditorium", Valid: true},
-			PreReadUri:   sql.NullString{String: "https://example.com/cybersecurity-intro.pdf", Valid: true},
+			PreReadUrl:   sql.NullString{String: "https://example.com/cybersecurity-intro.pdf", Valid: true},
 			DeadlineDays: 1,
 		},
 		{
@@ -252,7 +269,7 @@ func main() {
 			StartDate:    past(30),
 			EndDate:      past(29),
 			Location:     sql.NullString{String: "Conference Room B", Valid: true},
-			PreReadUri:   sql.NullString{String: "https://example.com/pm-basics.pdf", Valid: true},
+			PreReadUrl:   sql.NullString{String: "https://example.com/pm-basics.pdf", Valid: true},
 			DeadlineDays: 3,
 		},
 		{
@@ -274,7 +291,8 @@ func main() {
 		t.ModeOfDelivery = defaultTrainingParams.ModeOfDelivery
 		t.InstructorName = defaultTrainingParams.InstructorName
 		t.CreatedByID = defaultTrainingParams.CreatedByID
-		t.MappedCategory = string(t.Category)
+		t.MappedCategory = sql.NullString{String: string(t.Category), Valid: true}
+		t.Status = defaultTrainingParams.Status
 
 		training, err := queries.UpsertTraining(ctx, t)
 		if err != nil {
@@ -289,44 +307,44 @@ func main() {
 		{
 			ID:            uuid.New(),
 			UserID:        emp1.ID,
-			TrainingID:    createdTrainings["Advanced Excel & Data Analysis"].ID,
+			TrainingID:    uuid.NullUUID{UUID: createdTrainings["Advanced Excel & Data Analysis"].ID, Valid: true},
 			NominatedByID: emp1.ID,
-			Status:        models.NomPending,
+			Status:        models.NomPendingEmployeeApproval,
 		},
 		{
 			ID:            uuid.New(),
 			UserID:        emp1.ID,
-			TrainingID:    createdTrainings["Leadership Excellence Program"].ID,
+			TrainingID:    uuid.NullUUID{UUID: createdTrainings["Leadership Excellence Program"].ID, Valid: true},
 			NominatedByID: manager1.ID,
-			Status:        models.NomApproved,
+			Status:        models.NomEnrolled,
 		},
 		{
 			ID:            uuid.New(),
 			UserID:        emp2.ID,
-			TrainingID:    createdTrainings["Cybersecurity Awareness"].ID,
+			TrainingID:    uuid.NullUUID{UUID: createdTrainings["Cybersecurity Awareness"].ID, Valid: true},
 			NominatedByID: manager1.ID,
-			Status:        models.NomApproved,
+			Status:        models.NomEnrolled,
 		},
 		{
 			ID:            uuid.New(),
 			UserID:        emp2.ID,
-			TrainingID:    createdTrainings["Project Management Fundamentals"].ID,
+			TrainingID:    uuid.NullUUID{UUID: createdTrainings["Project Management Fundamentals"].ID, Valid: true},
 			NominatedByID: manager1.ID,
 			Status:        models.NomCompleted,
 		},
 		{
 			ID:            uuid.New(),
 			UserID:        emp3.ID,
-			TrainingID:    createdTrainings["Conflict Resolution & Negotiation"].ID,
+			TrainingID:    uuid.NullUUID{UUID: createdTrainings["Conflict Resolution & Negotiation"].ID, Valid: true},
 			NominatedByID: manager2.ID,
 			Status:        models.NomAttended,
 		},
 		{
 			ID:            uuid.New(),
 			UserID:        emp3.ID,
-			TrainingID:    createdTrainings["Effective Communication & Presentation"].ID,
+			TrainingID:    uuid.NullUUID{UUID: createdTrainings["Effective Communication & Presentation"].ID, Valid: true},
 			NominatedByID: emp3.ID,
-			Status:        models.NomPending,
+			Status:        models.NomPendingManagerApproval,
 		},
 	}
 
@@ -352,7 +370,7 @@ func main() {
 		AuthorID:           uuid.NullUUID{UUID: cd1.ID, Valid: true},
 		Status:             models.CoursePublished,
 		Category:           models.TrainingTechnical,
-		EstimatedDurations: sql.NullInt64{Int64: 120, Valid: true},
+		EstimatedDuration:  sql.NullInt64{Int64: 120, Valid: true},
 		LearningOutcomes:   string(outcomes1),
 		IsStrictSequencing: true,
 		Version:            1,
@@ -434,7 +452,7 @@ func main() {
 		AuthorID:           uuid.NullUUID{UUID: cd1.ID, Valid: true},
 		Status:             models.CourseDraft,
 		Category:           models.TrainingBehavioral,
-		EstimatedDurations: sql.NullInt64{Int64: 90, Valid: true},
+		EstimatedDuration:  sql.NullInt64{Int64: 90, Valid: true},
 		LearningOutcomes:   string(outcomes2),
 		IsStrictSequencing: false,
 		Version:            1,

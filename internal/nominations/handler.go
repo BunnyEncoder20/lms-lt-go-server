@@ -266,7 +266,7 @@ func (h *Handler) HandleRespondToSelfNomination(w http.ResponseWriter, r *http.R
 	var status models.NominationStatus
 	switch req.Status {
 	case "APPROVED":
-		status = models.NomApproved
+		status = models.NomEnrolled
 	case "REJECTED":
 		status = models.NomRejected
 	default:

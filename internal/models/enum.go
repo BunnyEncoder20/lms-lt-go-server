@@ -126,3 +126,13 @@ const (
 	EntityTraining AttendanceEntityType = "TRAINING"
 	EntityCourse   AttendanceEntityType = "COURSE"
 )
+
+// DeliveryMode represents the mode of delivery for a training.
+type DeliveryMode string
+
+const (
+	InPerson    DeliveryMode = "IN_PERSON"
+	VirtualLink DeliveryMode = "VIRTUAL"
+	Hybrid      DeliveryMode = "HYBRID"
+	Elearning   DeliveryMode = "E-LEARNING"
+)

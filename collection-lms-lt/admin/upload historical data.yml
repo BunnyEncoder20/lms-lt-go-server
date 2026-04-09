@@ -1,0 +1,22 @@
+info:
+  name: upload historical data
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{base_url}}/admin/import-history"
+  body:
+    type: multipart-form
+    data:
+      - name: file
+        type: file
+        value:
+          - /home/varun/Code/rihan-work/lms-lt/LT employee training history report.xlsx
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

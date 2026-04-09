@@ -1,4 +1,6 @@
 -- schema.sql
+PRAGMA foreign_keys = ON;
+
 -- USERS TABLES --
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY, -- Use TEXT for UUID strings

@@ -25,26 +25,37 @@ func WriteJSON(w http.ResponseWriter, status int, data any) {
 }
 
 type UserResponse struct {
-	ID           string  `json:"id"`
-	PesNumber    string  `json:"pes_number"`
-	FirstName    string  `json:"first_name"`
-	LastName     string  `json:"last_name"`
-	Email        string  `json:"email"`
-	Role         Role    `json:"role"`
-	Cluster      *string `json:"cluster,omitempty"`
-	Title        string  `json:"title"`
-	Gender       string  `json:"gender"`
-	Band         string  `json:"band"`
-	Grade        string  `json:"grade"`
-	Ic           string  `json:"ic"`
-	Sbg          string  `json:"sbg"`
-	Bu           string  `json:"bu"`
-	Segment      string  `json:"segment"`
-	Department   string  `json:"department"`
-	BaseLocation string  `json:"base_location"`
-	IsID         *string `json:"is_id,omitempty"`
-	NsID         *string `json:"ns_id,omitempty"`
-	DhID         *string `json:"dh_id,omitempty"`
+	ID               string  `json:"id"`
+	PesNumber        string  `json:"pes_number"`
+	FirstName        string  `json:"first_name"`
+	LastName         string  `json:"last_name"`
+	FullName         *string `json:"full_name,omitempty"`
+	Email            string  `json:"email"`
+	Role             Role    `json:"role"`
+	Cluster          *string `json:"cluster,omitempty"`
+	Location         *string `json:"location,omitempty"`
+	Title            string  `json:"title"`
+	Gender           string  `json:"gender"`
+	Band             string  `json:"band"`
+	Grade            string  `json:"grade"`
+	EmploymentStatus *string `json:"employment_status,omitempty"`
+	IsPsn            *string `json:"is_psn,omitempty"`
+	IsName           *string `json:"is_name,omitempty"`
+	NsPsn            *string `json:"ns_psn,omitempty"`
+	NsName           *string `json:"ns_name,omitempty"`
+	DhPsn            *string `json:"dh_psn,omitempty"`
+	DhName           *string `json:"dh_name,omitempty"`
+	Ic               *string `json:"ic,omitempty"`
+	Sbg              *string `json:"sbg,omitempty"`
+	Bu               *string `json:"bu,omitempty"`
+	Segment          *string `json:"segment,omitempty"`
+	Department       *string `json:"department,omitempty"`
+	BaseLocation     *string `json:"base_location,omitempty"`
+	ManagerID        *string `json:"manager_id,omitempty"`
+	SkipManagerID    *string `json:"skip_manager_id,omitempty"`
+	IsID             *string `json:"is_id,omitempty"`
+	NsID             *string `json:"ns_id,omitempty"`
+	DhID             *string `json:"dh_id,omitempty"`
 }
 
 type TrainingResponse struct {
@@ -52,26 +63,40 @@ type TrainingResponse struct {
 	Title                string           `json:"title"`
 	Description          *string          `json:"description,omitempty"`
 	Category             TrainingCategory `json:"category"`
+	InstructorName       *string          `json:"instructor_name,omitempty"`
+	LearningOutcomes     *string          `json:"learning_outcomes,omitempty"`
+	MonthTag             *string          `json:"month_tag,omitempty"`
 	StartDate            string           `json:"start_date"`
 	EndDate              string           `json:"end_date"`
+	StartTime            *string          `json:"start_time,omitempty"`
+	EndTime              *string          `json:"end_time,omitempty"`
+	Timezone             *string          `json:"timezone,omitempty"`
+	Format               *string          `json:"format,omitempty"`
+	RegistrationDeadline *string          `json:"registration_deadline,omitempty"`
+	MaxCapacity          *int64           `json:"max_capacity,omitempty"`
+	TargetClusters       *string          `json:"target_clusters,omitempty"`
+	PrerequisitesUrl     *string          `json:"prerequisites_url,omitempty"`
+	VenueCost            int64            `json:"venue_cost"`
+	ProfessionalFees     int64            `json:"professional_fees"`
+	StationaryCost       int64            `json:"stationary_cost"`
+	Status               string           `json:"status"`
 	Location             *string          `json:"location,omitempty"`
 	VirtualLink          *string          `json:"virtual_link,omitempty"`
-	PreReadURI           *string          `json:"pre_read_uri,omitempty"`
-	CreatedByID          string           `json:"created_by_id"`
+	PreReadUrl           *string          `json:"pre_read_url,omitempty"`
 	DeadlineDays         int64            `json:"deadline_days"`
-	HrProgramID          string           `json:"hr_program_id"`
-	MappedCategory       string           `json:"mapped_category"`
+	IsActive             bool             `json:"is_active"`
+	CreatedAt            string           `json:"created_at"`
+	UpdatedAt            string           `json:"updated_at"`
+	CreatedByID          string           `json:"created_by_id"`
+	HrProgramID          *string          `json:"hr_program_id,omitempty"`
+	MappedCategory       *string          `json:"mapped_category,omitempty"`
 	ModeOfDelivery       DeliveryMode     `json:"mode_of_delivery"`
-	InstructorName       string           `json:"instructor_name"`
 	InstitutePartnerName *string          `json:"institute_partner_name,omitempty"`
 	ProcessOwnerName     *string          `json:"process_owner_name,omitempty"`
 	ProcessOwnerEmail    *string          `json:"process_owner_email,omitempty"`
 	DurationManhours     *float64         `json:"duration_manhours,omitempty"`
 	TrainingMandays      *float64         `json:"training_mandays,omitempty"`
-	FacilityID           string           `json:"facility_id"`
-	IsActive             bool             `json:"is_active"`
-	CreatedAt            string           `json:"created_at"`
-	UpdatedAt            string           `json:"updated_at"`
+	FacilityID           *string          `json:"facility_id,omitempty"`
 }
 
 type NominationResponse struct {
@@ -81,12 +106,12 @@ type NominationResponse struct {
 	TrainingID           string           `json:"training_id"`
 	NominatedByID        string           `json:"nominated_by_id"`
 	HrCompletionStatus   *string          `json:"hr_completion_status,omitempty"`
-	ProfFees             *float64         `json:"prof_fees,omitempty"`
-	VenueCost            *float64         `json:"venue_cost,omitempty"`
-	OtherCost            *float64         `json:"other_cost,omitempty"`
-	NonTemsTravel        *float64         `json:"non_tems_travel,omitempty"`
-	NonTemsAccommodation *float64         `json:"non_tems_accommodation,omitempty"`
-	TotalCost            *float64         `json:"total_cost,omitempty"`
+	ProfFees             *int64           `json:"prof_fees,omitempty"`
+	VenueCost            *int64           `json:"venue_cost,omitempty"`
+	OtherCost            *int64           `json:"other_cost,omitempty"`
+	NonTemsTravel        *int64           `json:"non_tems_travel,omitempty"`
+	NonTemsAccommodation *int64           `json:"non_tems_accommodation,omitempty"`
+	TotalCost            *int64           `json:"total_cost,omitempty"`
 	CreatedAt            string           `json:"created_at"`
 	UpdatedAt            string           `json:"updated_at"`
 }
@@ -98,12 +123,12 @@ type NominationWithDetailsResponse struct {
 	Training             TrainingResponse `json:"training"`
 	NominatedByID        string           `json:"nominated_by_id"`
 	HrCompletionStatus   *string          `json:"hr_completion_status,omitempty"`
-	ProfFees             *float64         `json:"prof_fees,omitempty"`
-	VenueCost            *float64         `json:"venue_cost,omitempty"`
-	OtherCost            *float64         `json:"other_cost,omitempty"`
-	NonTemsTravel        *float64         `json:"non_tems_travel,omitempty"`
-	NonTemsAccommodation *float64         `json:"non_tems_accommodation,omitempty"`
-	TotalCost            *float64         `json:"total_cost,omitempty"`
+	ProfFees             *int64           `json:"prof_fees,omitempty"`
+	VenueCost            *int64           `json:"venue_cost,omitempty"`
+	OtherCost            *int64           `json:"other_cost,omitempty"`
+	NonTemsTravel        *int64           `json:"non_tems_travel,omitempty"`
+	NonTemsAccommodation *int64           `json:"non_tems_accommodation,omitempty"`
+	TotalCost            *int64           `json:"total_cost,omitempty"`
 	CreatedAt            string           `json:"created_at"`
 	UpdatedAt            string           `json:"updated_at"`
 }
@@ -149,4 +174,11 @@ type ClusterStatsResponse struct {
 	TotalEmployees int64  `json:"total_employees"`
 	Trained        int64  `json:"trained"`
 	Untrained      int64  `json:"untrained"`
+}
+
+type ImportResponse struct {
+	TotalRows       int64 `json:"total_rows"`
+	Imported        int64 `json:"imported"`
+	UniqueTrainings int64 `json:"unique_trainings"`
+	MonthCoverage   int64 `json:"month_coverage"`
 }
