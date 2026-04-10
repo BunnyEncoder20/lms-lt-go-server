@@ -21,7 +21,7 @@ UPDATE attendance_requests SET
     confirmed_ip = ?,
     confirmed_user_agent = ?
 WHERE id = ?
-RETURNING id, token_hash, status, sent_at, confirmed_at, consumed_at, confirmed_ip, confirmed_user_agent, created_at, dispatch_id, nomination_id, user_id, consumed_by_user_id
+RETURNING id, token_hash, status, sent_at, confirmed_at, consumed_at, confirmed_ip, confirmed_user_agent, created_at, dispatch_id, nomination_id, user_id, consumed_by_user_id, manager_approval_status, manager_approved_at, manager_verifier_id, reminder_count, last_reminder_at
 `
 
 type ConfirmAttendanceRequestParams struct {
@@ -47,6 +47,11 @@ func (q *Queries) ConfirmAttendanceRequest(ctx context.Context, arg ConfirmAtten
 		&i.NominationID,
 		&i.UserID,
 		&i.ConsumedByUserID,
+		&i.ManagerApprovalStatus,
+		&i.ManagerApprovedAt,
+		&i.ManagerVerifierID,
+		&i.ReminderCount,
+		&i.LastReminderAt,
 	)
 	return i, err
 }
@@ -210,7 +215,7 @@ INSERT INTO attendance_requests (
 ) VALUES (
     ?, ?, ?, ?, ?
 )
-RETURNING id, token_hash, status, sent_at, confirmed_at, consumed_at, confirmed_ip, confirmed_user_agent, created_at, dispatch_id, nomination_id, user_id, consumed_by_user_id
+RETURNING id, token_hash, status, sent_at, confirmed_at, consumed_at, confirmed_ip, confirmed_user_agent, created_at, dispatch_id, nomination_id, user_id, consumed_by_user_id, manager_approval_status, manager_approved_at, manager_verifier_id, reminder_count, last_reminder_at
 `
 
 type CreateAttendanceRequestParams struct {
@@ -245,6 +250,11 @@ func (q *Queries) CreateAttendanceRequest(ctx context.Context, arg CreateAttenda
 		&i.NominationID,
 		&i.UserID,
 		&i.ConsumedByUserID,
+		&i.ManagerApprovalStatus,
+		&i.ManagerApprovedAt,
+		&i.ManagerVerifierID,
+		&i.ReminderCount,
+		&i.LastReminderAt,
 	)
 	return i, err
 }
@@ -828,10 +838,10 @@ type CreateUserParams struct {
 	Role             models.Role    `json:"role"`
 	Cluster          sql.NullString `json:"cluster"`
 	Location         sql.NullString `json:"location"`
-	Title            string         `json:"title"`
-	Gender           string         `json:"gender"`
-	Band             string         `json:"band"`
-	Grade            string         `json:"grade"`
+	Title            sql.NullString `json:"title"`
+	Gender           sql.NullString `json:"gender"`
+	Band             sql.NullString `json:"band"`
+	Grade            sql.NullString `json:"grade"`
 	EmploymentStatus sql.NullString `json:"employment_status"`
 	IsPsn            sql.NullString `json:"is_psn"`
 	IsName           sql.NullString `json:"is_name"`
@@ -1087,7 +1097,7 @@ func (q *Queries) GetAllActiveAndUpcomingTrainings(ctx context.Context) ([]Train
 }
 
 const getAttendanceRequestByToken = `-- name: GetAttendanceRequestByToken :one
-SELECT id, token_hash, status, sent_at, confirmed_at, consumed_at, confirmed_ip, confirmed_user_agent, created_at, dispatch_id, nomination_id, user_id, consumed_by_user_id FROM attendance_requests
+SELECT id, token_hash, status, sent_at, confirmed_at, consumed_at, confirmed_ip, confirmed_user_agent, created_at, dispatch_id, nomination_id, user_id, consumed_by_user_id, manager_approval_status, manager_approved_at, manager_verifier_id, reminder_count, last_reminder_at FROM attendance_requests
 WHERE token_hash = ?
 `
 
@@ -1108,6 +1118,11 @@ func (q *Queries) GetAttendanceRequestByToken(ctx context.Context, tokenHash str
 		&i.NominationID,
 		&i.UserID,
 		&i.ConsumedByUserID,
+		&i.ManagerApprovalStatus,
+		&i.ManagerApprovedAt,
+		&i.ManagerVerifierID,
+		&i.ReminderCount,
+		&i.LastReminderAt,
 	)
 	return i, err
 }
@@ -3205,10 +3220,10 @@ type UpsertUserParams struct {
 	Role             models.Role    `json:"role"`
 	Cluster          sql.NullString `json:"cluster"`
 	Location         sql.NullString `json:"location"`
-	Title            string         `json:"title"`
-	Gender           string         `json:"gender"`
-	Band             string         `json:"band"`
-	Grade            string         `json:"grade"`
+	Title            sql.NullString `json:"title"`
+	Gender           sql.NullString `json:"gender"`
+	Band             sql.NullString `json:"band"`
+	Grade            sql.NullString `json:"grade"`
 	EmploymentStatus sql.NullString `json:"employment_status"`
 	IsPsn            sql.NullString `json:"is_psn"`
 	IsName           sql.NullString `json:"is_name"`

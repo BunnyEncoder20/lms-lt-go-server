@@ -157,11 +157,17 @@ func (s *Server) HelloWorldHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 	dbHealthMpp := s.db.Health()
 
-	resp := models.JSONResponse{
+	if dbHealthMpp["status"] == "down" {
+		models.WriteJSON(w, http.StatusServiceUnavailable, models.JSONResponse{
+			Success: false,
+			Message: dbHealthMpp["Database is unavailable"],
+			Data:    dbHealthMpp,
+		})
+	}
+
+	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: dbHealthMpp["message"],
 		Data:    dbHealthMpp,
-	}
-
-	models.WriteJSON(w, http.StatusOK, resp)
+	})
 }

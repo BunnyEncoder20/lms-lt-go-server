@@ -23,17 +23,17 @@ clean:
 	@rm -rf ./tmp
 
 # Build the binary for the docker linux
-docker-offline-up:
+docker-up:
 	@echo "Building the binary for the docker env..."
-	@CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api/main.go
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o main ./cmd/api/main.go
 	@echo "Starting the offline Docker Compose setup..."
-	@docker compose -f docker-compose.offline.yml up --build -d
+	@touch local_lms.db  # incase the db file is not made already, does nothing if already exists
+	@docker compose up --build -d
 
 # Stop all docker containers (both standard and offline)
 docker-down:
 	@echo "Stopping and removing all Docker containers..."
-	@docker compose down
-	@docker compose -p lms-offline -f docker-compose.offline.yml down
+	@docker compose down -v
 
 # Live Reload
 watch:

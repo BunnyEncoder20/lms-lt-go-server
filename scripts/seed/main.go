@@ -54,10 +54,10 @@ func main() {
 
 	// Default values for required fields in users table
 	defaultUserParams := db.UpsertUserParams{
-		Title:        "Mr",
-		Gender:       "M",
-		Band:         "B1",
-		Grade:        "G1",
+		Title:        sql.NullString{String: "Mr", Valid: true},
+		Gender:       sql.NullString{String: "M", Valid: true},
+		Band:         sql.NullString{String: "B1", Valid: true},
+		Grade:        sql.NullString{String: "G1", Valid: true},
 		Ic:           sql.NullString{String: "IC1", Valid: true},
 		Sbg:          sql.NullString{String: "SBG1", Valid: true},
 		Bu:           sql.NullString{String: "BU1", Valid: true},
@@ -78,16 +78,16 @@ func main() {
 
 	upsertUser := func(params db.UpsertUserParams) db.User {
 		// Apply defaults
-		if params.Title == "" {
+		if !params.Title.Valid {
 			params.Title = defaultUserParams.Title
 		}
-		if params.Gender == "" {
+		if !params.Gender.Valid {
 			params.Gender = defaultUserParams.Gender
 		}
-		if params.Band == "" {
+		if !params.Band.Valid {
 			params.Band = defaultUserParams.Band
 		}
-		if params.Grade == "" {
+		if !params.Grade.Valid {
 			params.Grade = defaultUserParams.Grade
 		}
 		if !params.Ic.Valid {

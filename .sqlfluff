@@ -13,3 +13,6 @@ capitalisation_policy = consistent
 [sqlfluff:rules:capitalisation.functions]
 # Force function names like COUNT(), MAX() to be uppercase
 extended_capitalisation_policy = upper
+
+# Ignore Layout (LT) and Ambiguous (AM) rules that cause unfixable warnings
+exclude_rules = LT12, AM04

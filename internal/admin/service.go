@@ -1,4 +1,4 @@
-// Package Admin contains all the handlers and services related to admin management.
+// Package admin contains all the handlers and services related to admin management.
 package admin
 
 import (
@@ -225,7 +225,6 @@ func (s *service) ImportHistoricalWorkbook(ctx context.Context, workbook io.Read
 				TotalCostInr:     sql.NullInt64{Int64: cost, Valid: costStr != ""},
 				SourceFile:       sql.NullString{String: originalName, Valid: true},
 			})
-
 			if err != nil {
 				return fmt.Errorf("failed to insert row %d: %w", i, err)
 			}
@@ -239,7 +238,6 @@ func (s *service) ImportHistoricalWorkbook(ctx context.Context, workbook io.Read
 
 		return nil // commit the massive batch of inserts
 	})
-
 	if err != nil {
 		return models.ImportResponse{}, fmt.Errorf("import transaction failed: %w", err)
 	}

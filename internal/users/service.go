@@ -82,10 +82,10 @@ func (s *service) Create(ctx context.Context, usersData []models.CreateUserReque
 				LastName:     userData.LastName,
 				Email:        userData.Email,
 				Role:         models.Role(userData.Role),
-				Title:        userData.Title,
-				Gender:       userData.Gender,
-				Band:         userData.Band,
-				Grade:        userData.Grade,
+				Title:        sql.NullString{String: userData.Title, Valid: userData.Title != ""},
+				Gender:       sql.NullString{String: userData.Gender, Valid: userData.Gender != ""},
+				Band:         sql.NullString{String: userData.Band, Valid: userData.Band != ""},
+				Grade:        sql.NullString{String: userData.Grade, Valid: userData.Grade != ""},
 				Ic:           sql.NullString{String: userData.Ic, Valid: userData.Ic != ""},
 				Sbg:          sql.NullString{String: userData.Sbg, Valid: userData.Sbg != ""},
 				Bu:           sql.NullString{String: userData.Bu, Valid: userData.Bu != ""},
@@ -225,10 +225,6 @@ func MapUserToResponse(u db.User) models.UserResponse {
 		LastName:  u.LastName,
 		Email:     u.Email,
 		Role:      u.Role,
-		Title:     u.Title,
-		Gender:    u.Gender,
-		Band:      u.Band,
-		Grade:     u.Grade,
 	}
 
 	if u.FullName.Valid {
@@ -299,6 +295,18 @@ func MapUserToResponse(u db.User) models.UserResponse {
 	if u.DhID.Valid {
 		id := u.DhID.UUID.String()
 		resp.DhID = &id
+	}
+	if u.Title.Valid {
+		resp.Title = &u.Title.String
+	}
+	if u.Gender.Valid {
+		resp.Gender = &u.Title.String
+	}
+	if u.Band.Valid {
+		resp.Band = &u.Band.String
+	}
+	if u.Grade.Valid {
+		resp.Grade = &u.Grade.String
 	}
 
 	return resp

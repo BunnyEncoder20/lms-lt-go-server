@@ -24,19 +24,32 @@ type AttendanceDispatch struct {
 }
 
 type AttendanceRequest struct {
-	ID                 uuid.UUID      `json:"id"`
-	TokenHash          string         `json:"token_hash"`
-	Status             string         `json:"status"`
-	SentAt             time.Time      `json:"sent_at"`
-	ConfirmedAt        sql.NullTime   `json:"confirmed_at"`
-	ConsumedAt         sql.NullTime   `json:"consumed_at"`
-	ConfirmedIp        sql.NullString `json:"confirmed_ip"`
-	ConfirmedUserAgent sql.NullString `json:"confirmed_user_agent"`
-	CreatedAt          time.Time      `json:"created_at"`
-	DispatchID         uuid.UUID      `json:"dispatch_id"`
-	NominationID       uuid.UUID      `json:"nomination_id"`
-	UserID             uuid.UUID      `json:"user_id"`
-	ConsumedByUserID   uuid.UUID      `json:"consumed_by_user_id"`
+	ID                    uuid.UUID      `json:"id"`
+	TokenHash             string         `json:"token_hash"`
+	Status                string         `json:"status"`
+	SentAt                time.Time      `json:"sent_at"`
+	ConfirmedAt           sql.NullTime   `json:"confirmed_at"`
+	ConsumedAt            sql.NullTime   `json:"consumed_at"`
+	ConfirmedIp           sql.NullString `json:"confirmed_ip"`
+	ConfirmedUserAgent    sql.NullString `json:"confirmed_user_agent"`
+	CreatedAt             time.Time      `json:"created_at"`
+	DispatchID            uuid.UUID      `json:"dispatch_id"`
+	NominationID          uuid.UUID      `json:"nomination_id"`
+	UserID                uuid.UUID      `json:"user_id"`
+	ConsumedByUserID      uuid.UUID      `json:"consumed_by_user_id"`
+	ManagerApprovalStatus string         `json:"manager_approval_status"`
+	ManagerApprovedAt     sql.NullTime   `json:"manager_approved_at"`
+	ManagerVerifierID     uuid.UUID      `json:"manager_verifier_id"`
+	ReminderCount         int64          `json:"reminder_count"`
+	LastReminderAt        sql.NullTime   `json:"last_reminder_at"`
+}
+
+type AttendanceSetting struct {
+	ID                   uuid.UUID    `json:"id"`
+	DefaultExpiryMinutes int64        `json:"default_expiry_minutes"`
+	ReminderHours        int64        `json:"reminder_hours"`
+	UpdatedAt            sql.NullTime `json:"updated_at"`
+	CreatedAt            sql.NullTime `json:"created_at"`
 }
 
 type Course struct {
@@ -211,10 +224,10 @@ type User struct {
 	Role             models.Role    `json:"role"`
 	Cluster          sql.NullString `json:"cluster"`
 	Location         sql.NullString `json:"location"`
-	Title            string         `json:"title"`
-	Gender           string         `json:"gender"`
-	Band             string         `json:"band"`
-	Grade            string         `json:"grade"`
+	Title            sql.NullString `json:"title"`
+	Gender           sql.NullString `json:"gender"`
+	Band             sql.NullString `json:"band"`
+	Grade            sql.NullString `json:"grade"`
 	EmploymentStatus sql.NullString `json:"employment_status"`
 	IsPsn            sql.NullString `json:"is_psn"`
 	IsName           sql.NullString `json:"is_name"`

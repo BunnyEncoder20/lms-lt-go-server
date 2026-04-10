@@ -1,0 +1,442 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  // output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum TrainingCategory {
+  TECHNICAL
+  IT_DIGITAL
+  QUALITY
+  SAFETY
+  BEHAVIORAL
+}
+
+enum TrainingFormat {
+  IN_PERSON
+  VIRTUAL
+  HYBRID
+}
+
+enum TrainingStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+}
+
+enum NominationStatus {
+  PENDING_MANAGER_ASSIGNMENT
+  PENDING_EMPLOYEE_APPROVAL
+  ENROLLED
+  PENDING_MANAGER_APPROVAL
+  DECLINED
+  REJECTED
+  COMPLETED
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ContentType {
+  VIDEO
+  AUDIO
+  PDF
+  IMAGE
+  RICH_TEXT
+  PRESENTATION
+}
+
+enum AssignmentStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum AttendanceEntityType {
+  TRAINING
+  COURSE
+}
+
+enum AttendanceRequestStatus {
+  SENT
+  CONFIRMED
+  EXPIRED
+  VOID
+}
+
+enum ManagerAttendanceApprovalStatus {
+  NOT_REQUIRED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id               String   @id @default(uuid())
+  pesNumber        String   @unique @map("pes_number")
+  password         String
+  firstName        String   @map("first_name")
+  lastName         String   @map("last_name")
+  fullName         String?  @map("full_name")
+  title            String?
+  gender           String?
+  email            String   @unique
+  band             String?
+  grade            String?
+  role             Role     @default(EMPLOYEE)
+  cluster          String?
+  location         String?
+  employmentStatus String?  @map("employee_status")
+  isPsn            String?  @map("is_psn")
+  isName           String?  @map("is_name")
+  nsPsn            String?  @map("ns_psn")
+  nsName           String?  @map("ns_name")
+  dhPsn            String?  @map("dh_psn")
+  dhName           String?  @map("dh_name")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Self-referencing manager relationship
+  managerId String? @map("manager_id")
+  manager   User?   @relation("ManagerEmployees", fields: [managerId], references: [id])
+  employees User[]  @relation("ManagerEmployees")
+
+  skipManagerId String? @map("skip_manager_id")
+  skipManager   User?   @relation("SkipManagerEmployees", fields: [skipManagerId], references: [id])
+  skipReports   User[]  @relation("SkipManagerEmployees")
+
+  // Trainings created by this user (admin)
+  trainingsCreated Training[] @relation("TrainingCreator")
+
+  // Nominations where this user is the trainee
+  nominations Nomination[] @relation("NomineeNominations")
+
+  // Nominations submitted by this user (on behalf of others or self)
+  nominationsGiven Nomination[] @relation("NominatorNominations")
+
+  // Manager allocations (admin assigns trainings/courses to managers)
+  managerAllocations ManagerAllocation[] @relation("ManagerAllocations")
+
+  // Allocations given by this admin
+  adminAllocations ManagerAllocation[] @relation("AdminAllocations")
+
+  // Admin/HR: courses authored
+  coursesAuthored Course[] @relation("CourseAuthor")
+
+  // Learning: course assignments as learner
+  courseAssignments CourseAssignment[] @relation("AssignmentLearner")
+
+  // Admin/HR: course assignments given
+  assignmentsGiven CourseAssignment[] @relation("AssignmentAssigner")
+
+  attendanceDispatchesCreated AttendanceDispatch[] @relation("AttendanceDispatchCreator")
+  attendanceRequestsTargeted  AttendanceRequest[]  @relation("AttendanceRequestTarget")
+  attendanceRequestsConfirmed AttendanceRequest[]  @relation("AttendanceRequestConfirmer")
+  attendanceRequestsToVerify  AttendanceRequest[]  @relation("AttendanceRequestManager")
+
+  @@map("users")
+}
+
+model Training {
+  id                   String           @id @default(uuid())
+  title                String
+  description          String?
+  category             TrainingCategory
+  instructorName       String?          @map("instructor_name")
+  learningOutcomes     String[]         @default([]) @map("learning_outcomes")
+  monthTag             String?          @map("month_tag")
+  startDate            DateTime         @map("start_date")
+  endDate              DateTime         @map("end_date")
+  startTime            String?          @map("start_time")
+  endTime              String?          @map("end_time")
+  timezone             String?
+  format               TrainingFormat?
+  registrationDeadline DateTime?        @map("registration_deadline")
+  maxCapacity          Int?             @map("max_capacity")
+  targetClusters       String[]         @default([]) @map("target_clusters")
+  prerequisitesUrl     String?          @map("prerequisites_url")
+  venueCost            Float?           @map("venue_cost")
+  professionalFees     Float?           @map("professional_fees")
+  stationaryCost       Float?           @map("stationary_cost")
+  status               TrainingStatus   @default(DRAFT)
+  location             String?
+  virtualLink          String?          @map("virtual_link")
+  preReadUrl           String?          @map("pre_read_url")
+  deadlineDays         Int              @default(2) @map("deadline_days")
+  isActive             Boolean          @default(true) @map("is_active")
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
+
+  createdById String @map("created_by_id")
+  createdBy   User   @relation("TrainingCreator", fields: [createdById], references: [id])
+
+  nominations          Nomination[]
+  allocations          ManagerAllocation[]
+  attendanceDispatches AttendanceDispatch[]
+
+  @@map("trainings")
+}
+
+model Nomination {
+  id        String           @id @default(uuid())
+  status    NominationStatus @default(PENDING_EMPLOYEE_APPROVAL)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  userId String @map("user_id")
+  user   User   @relation("NomineeNominations", fields: [userId], references: [id])
+
+  trainingId String?   @map("training_id")
+  training   Training? @relation(fields: [trainingId], references: [id])
+
+  courseId String? @map("course_id")
+  course   Course? @relation(fields: [courseId], references: [id])
+
+  nominatedById String @map("nominated_by_id")
+  nominatedBy   User   @relation("NominatorNominations", fields: [nominatedById], references: [id])
+
+  attendanceRequests AttendanceRequest[]
+
+  @@unique([userId, trainingId])
+  @@unique([userId, courseId])
+  @@map("nominations")
+}
+
+model Course {
+  id                 String           @id @default(uuid())
+  title              String
+  description        String?
+  coverImageUrl      String?          @map("cover_image_url")
+  status             CourseStatus     @default(DRAFT)
+  category           TrainingCategory
+  estimatedDuration  Int?             @map("estimated_duration")
+  learningOutcomes   String[]         @map("learning_outcomes")
+  isStrictSequencing Boolean          @default(false) @map("is_strict_sequencing")
+  version            Int              @default(1)
+  publishedAt        DateTime?        @map("published_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  authorId String @map("author_id")
+  author   User   @relation("CourseAuthor", fields: [authorId], references: [id])
+
+  modules              CourseModule[]
+  assignments          CourseAssignment[]
+  nominations          Nomination[]
+  allocations          ManagerAllocation[]
+  attendanceDispatches AttendanceDispatch[]
+
+  @@map("courses")
+}
+
+model CourseModule {
+  id            String   @id @default(uuid())
+  title         String
+  description   String?
+  sequenceOrder Int      @map("sequence_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  courseId String @map("course_id")
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  lessons Lesson[]
+
+  @@map("course_modules")
+}
+
+model Lesson {
+  id              String      @id @default(uuid())
+  title           String
+  contentType     ContentType @map("content_type")
+  assetUrl        String?     @map("asset_url")
+  richTextContent String?     @map("rich_text_content")
+  durationMinutes Int?        @map("duration_minutes")
+  sequenceOrder   Int         @map("sequence_order")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  moduleId String       @map("module_id")
+  module   CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  progress LessonProgress[]
+
+  @@map("lessons")
+}
+
+model CourseAssignment {
+  id                 String           @id @default(uuid())
+  status             AssignmentStatus @default(NOT_STARTED)
+  progressPercentage Float            @default(0) @map("progress_percentage")
+  courseVersion      Int              @default(1) @map("course_version")
+  dueDate            DateTime?        @map("due_date")
+  enrolledAt         DateTime         @default(now()) @map("enrolled_at")
+  completedAt        DateTime?        @map("completed_at")
+
+  courseId String @map("course_id")
+  course   Course @relation(fields: [courseId], references: [id])
+
+  userId String @map("user_id")
+  user   User   @relation("AssignmentLearner", fields: [userId], references: [id])
+
+  assignedById String @map("assigned_by_id")
+  assignedBy   User   @relation("AssignmentAssigner", fields: [assignedById], references: [id])
+
+  lessonProgress LessonProgress[]
+
+  @@unique([userId, courseId])
+  @@map("course_assignments")
+}
+
+model LessonProgress {
+  id                   String    @id @default(uuid())
+  isCompleted          Boolean   @default(false) @map("is_completed")
+  lastPlaybackPosition Int       @default(0) @map("last_playback_position")
+  completedAt          DateTime? @map("completed_at")
+
+  assignmentId String           @map("assignment_id")
+  assignment   CourseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  lessonId String @map("lesson_id")
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, lessonId])
+  @@map("lesson_progress")
+}
+
+model ManagerAllocation {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  trainingId String?   @map("training_id")
+  training   Training? @relation(fields: [trainingId], references: [id])
+
+  courseId String? @map("course_id")
+  course   Course? @relation(fields: [courseId], references: [id])
+
+  managerId String @map("manager_id")
+  manager   User   @relation("ManagerAllocations", fields: [managerId], references: [id])
+
+  assignedById String @map("assigned_by_id")
+  assignedBy   User   @relation("AdminAllocations", fields: [assignedById], references: [id])
+
+  @@unique([managerId, trainingId])
+  @@unique([managerId, courseId])
+  @@map("manager_allocations")
+}
+
+model HistoricalTrainingRecord {
+  id               String    @id @default(uuid())
+  programId        String?   @map("program_id")
+  programTitle     String    @map("program_title")
+  mappedCategory   String?   @map("mapped_category")
+  cluster          String?
+  employeePesNo    String?   @map("employee_pes_no")
+  employeeName     String?   @map("employee_name")
+  completionStatus String?   @map("completion_status")
+  modeOfDelivery   String?   @map("mode_of_delivery")
+  fromDate         DateTime? @map("from_date")
+  toDate           DateTime? @map("to_date")
+  monthKey         String    @map("month_key")
+  manDays          Float?    @map("man_days")
+  manHours         Float?    @map("man_hours")
+  totalCostInr     Float?    @map("total_cost_inr")
+  sourceFile       String?   @map("source_file")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@index([monthKey])
+  @@index([mappedCategory])
+  @@index([cluster])
+  @@map("historical_training_records")
+}
+
+model AttendanceDispatch {
+  id         String               @id @default(uuid())
+  entityType AttendanceEntityType @map("entity_type")
+  createdAt  DateTime             @default(now()) @map("created_at")
+  expiresAt  DateTime             @map("expires_at")
+  closedAt   DateTime?            @map("closed_at")
+
+  trainingId String?   @map("training_id")
+  training   Training? @relation(fields: [trainingId], references: [id])
+
+  courseId String? @map("course_id")
+  course   Course? @relation(fields: [courseId], references: [id])
+
+  createdById String @map("created_by_id")
+  createdBy   User   @relation("AttendanceDispatchCreator", fields: [createdById], references: [id])
+
+  requests AttendanceRequest[]
+
+  @@index([entityType, createdAt])
+  @@index([trainingId])
+  @@index([courseId])
+  @@map("attendance_dispatches")
+}
+
+model AttendanceRequest {
+  id                    String                          @id @default(uuid())
+  tokenHash             String                          @unique @map("token_hash")
+  status                AttendanceRequestStatus         @default(SENT)
+  sentAt                DateTime                        @default(now()) @map("sent_at")
+  confirmedAt           DateTime?                       @map("confirmed_at")
+  consumedAt            DateTime?                       @map("consumed_at")
+  confirmedIp           String?                         @map("confirmed_ip")
+  confirmedUserAgent    String?                         @map("confirmed_user_agent")
+  managerApprovalStatus ManagerAttendanceApprovalStatus @default(NOT_REQUIRED) @map("manager_approval_status")
+  managerApprovedAt     DateTime?                       @map("manager_approved_at")
+  reminderCount         Int                             @default(0) @map("reminder_count")
+  lastReminderAt        DateTime?                       @map("last_reminder_at")
+  createdAt             DateTime                        @default(now()) @map("created_at")
+
+  dispatchId String             @map("dispatch_id")
+  dispatch   AttendanceDispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+
+  nominationId String     @map("nomination_id")
+  nomination   Nomination @relation(fields: [nominationId], references: [id], onDelete: Cascade)
+
+  userId String @map("user_id")
+  user   User   @relation("AttendanceRequestTarget", fields: [userId], references: [id])
+
+  consumedByUserId String? @map("consumed_by_user_id")
+  consumedByUser   User?   @relation("AttendanceRequestConfirmer", fields: [consumedByUserId], references: [id])
+
+  managerVerifierId String? @map("manager_verifier_id")
+  managerVerifier   User?   @relation("AttendanceRequestManager", fields: [managerVerifierId], references: [id])
+
+  @@unique([dispatchId, nominationId])
+  @@index([dispatchId])
+  @@index([nominationId])
+  @@index([userId])
+  @@index([managerVerifierId, managerApprovalStatus])
+  @@map("attendance_requests")
+}
+
+model AttendanceSettings {
+  id                   String   @id @default("global")
+  defaultExpiryMinutes Int      @default(1440) @map("default_expiry_minutes")
+  reminderHours        Int      @default(6) @map("reminder_hours")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@map("attendance_settings")
+}

@@ -17,10 +17,10 @@ CREATE TABLE IF NOT EXISTS users (
     location TEXT,
 
     -- Demographics
-    title TEXT NOT NULL,
-    gender TEXT NOT NULL, -- CHECK (gender IN ('M', 'F'))
-    band TEXT NOT NULL,
-    grade TEXT NOT NULL,
+    title TEXT,
+    gender TEXT, -- CHECK (gender IN ('M', 'F'))
+    band TEXT,
+    grade TEXT,
 
     -- L&T Organizational Matrix / Status
     employment_status TEXT,
@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS trainings (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    created_by_id TEXT NOT NULL,
+    created_by_id TEXT,
 
     -- Legacy / HR Mappings
     hr_program_id TEXT,
@@ -322,7 +322,7 @@ CREATE TABLE IF NOT EXISTS course_assignments (
     enrolled_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at DATETIME,
     course_id TEXT NOT NULL,
-    user_id TEXT,
+    user_id TEXT NOT NULL,
     assigned_by_id TEXT,
 
     -- FOREIGN KEYS
@@ -446,6 +446,18 @@ CREATE TABLE IF NOT EXISTS attendance_requests (
     nomination_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
     consumed_by_user_id TEXT,
+    manager_approval_status TEXT NOT NULL DEFAULT 'NOT_REQUIRED' CHECK (
+        manager_approval_status IN (
+            'NOT_REQUIRED',
+            'PENDING',
+            'APPROVED',
+            'REJECTED'
+        )
+    ),
+    manager_approved_at DATETIME,
+    manager_verifier_id TEXT,
+    reminder_count INTEGER NOT NULL DEFAULT 0,
+    last_reminder_at DATETIME,
 
     FOREIGN KEY (dispatch_id) REFERENCES attendance_dispatches (
         id
@@ -453,10 +465,14 @@ CREATE TABLE IF NOT EXISTS attendance_requests (
     FOREIGN KEY (nomination_id) REFERENCES nominations (id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     FOREIGN KEY (consumed_by_user_id) REFERENCES users (id) ON DELETE SET NULL,
+    FOREIGN KEY (manager_verifier_id) REFERENCES users (id) ON DELETE SET NULL,
 
     UNIQUE (dispatch_id, nomination_id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_req_manager_status ON attendance_requests (
+    manager_verifier_id, manager_approval_status
+);
 CREATE INDEX IF NOT EXISTS idx_req_dispatch ON attendance_requests (
     dispatch_id
 );
@@ -464,3 +480,12 @@ CREATE INDEX IF NOT EXISTS idx_req_nomination ON attendance_requests (
     nomination_id
 );
 CREATE INDEX IF NOT EXISTS idx_req_user ON attendance_requests (user_id);
+
+-- ATTENDANCE SETTINGS TABLE
+CREATE TABLE IF NOT EXISTS attendance_settings (
+    id TEXT DEFAULT 'global' PRIMARY KEY,
+    default_expiry_minutes INTEGER NOT NULL DEFAULT 1440,
+    reminder_hours INTEGER NOT NULL DEFAULT 6,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

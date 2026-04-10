@@ -34,10 +34,10 @@ type UserResponse struct {
 	Role             Role    `json:"role"`
 	Cluster          *string `json:"cluster,omitempty"`
 	Location         *string `json:"location,omitempty"`
-	Title            string  `json:"title"`
-	Gender           string  `json:"gender"`
-	Band             string  `json:"band"`
-	Grade            string  `json:"grade"`
+	Title            *string `json:"title"`
+	Gender           *string `json:"gender"`
+	Band             *string `json:"band"`
+	Grade            *string `json:"grade"`
 	EmploymentStatus *string `json:"employment_status,omitempty"`
 	IsPsn            *string `json:"is_psn,omitempty"`
 	IsName           *string `json:"is_name,omitempty"`

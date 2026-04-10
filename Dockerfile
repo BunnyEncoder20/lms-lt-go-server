@@ -1,38 +1,35 @@
-# Stage 1: Build
-FROM golang:1.25-alpine AS builder
+# Minimal Dockerfile for pre-compiled Go binary
+FROM alpine:3.23
 
-# Set the working directory inside the container
+# Install CA certificates for HTTPS requests if needed
+# RUN apk --no-cache add ca-certificates
+
+# Always connect as a regular user to the container and not have root previlage
+RUN adduser --disabled-password --gecos "" containeruser
+
 WORKDIR /app
 
-# Copy go.mod and go.sum files
-COPY go.mod go.sum ./
+# Create a data dir and give ownership to containeruser
+RUN mkdir data && chown containeruser:containeruser data
 
-# Download all dependencies. Dependencies will be cached if the go.mod and go.sum files are not changed
-RUN go mod download
+# Copy the pre-built binary and database from the host
+# This assumes 'make docker-build' and 'make db-seed' were run first
+COPY main .
+COPY .env.example .env
+# WARN: Critical: sqlite needs write access to the dir to create .wal and .shm files.
+COPY --chown=containeruser:containeruser local_lms.db ./data/
 
-# Copy the source from the current directory to the Working Directory inside the container
-COPY . .
-
-# Build the Go app
-# CGO_ENABLED=0 is used because modernc.org/sqlite does not require CGO
-RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api/main.go
-
-# Stage 2: Run
-FROM alpine:latest
-
-RUN apk --no-cache add ca-certificates
-
-WORKDIR /root/
-
-# Copy the Pre-built binary file from the previous stage
-COPY --from=builder /app/main .
-COPY --from=builder /app/.env.example .env
-# Copy the database if it exists, or let the app create it
-# If the app expects it to exist, uncomment the next line
-# COPY --from=builder /app/local_lms.db .
-
-# Expose port 8080 to the outside world
+# Expose port 8080
 EXPOSE 8080
 
-# Command to run the executable
+# Switch to none root user
+USER containeruser
+
+# HealthChecks: Use wget since it comes pre-installed on Alpine
+# wget -qO- silently downloads the page and outputs to stdout. 
+# If it gets a 500/503 from your Go app (because DB is down), wget exits with an error code (1), failing the healthcheck.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD wget -qO- http://localhost:8080/healthcheck || exit 1
+
+# Command to run
 CMD ["./main"]

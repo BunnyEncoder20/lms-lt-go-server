@@ -1,22 +1,28 @@
 services:
-  api:
-    build: .
+  lms-lt-go-server:
+    container_name: lms-lt-go-server
+    build:
+      context: .
+      dockerfile: Dockerfile # Standard capitalization
     ports:
-      - "${PORT:-8080}:8080"
+      - "8080:8080"
     environment:
       - PORT=8080
-      - DB_URL=local_lms.db
+      - DB_URL=data/local_lms.db
+      - APP_ENV=development # Triggers your JSON logger!
       - JWT_SECRET=${JWT_SECRET:-your-secret-key}
-      # - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3000}
+
+    # Map a persistent volume so your SQLite data survives restarts!
     volumes:
-      - ./local_lms.db:/root/local_lms.db
-    restart: unless-stopped
-    # Resource limits to see how it behaves under constraints
+      - lms_data:/app/data # Maps the named volume to your container's working directory
+
     deploy:
       resources:
         limits:
-          cpus: "0.50"
-          memory: 512M
-        reservations:
-          cpus: "0.25"
-          memory: 128M
+          memory: 500M # might need some more mem for large excel files
+
+    restart: unless-stopped
+
+# Declare the named volume at the bottom of the file
+volumes:
+  lms_data:
