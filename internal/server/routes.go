@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"go-server/internal/admin"
 	"go-server/internal/auth"
@@ -76,7 +77,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	// --- Public Routes
 	mux.HandleFunc("GET /", s.HelloWorldHandler)
 	mux.HandleFunc("GET /dbhealth", s.healthHandler)
-	mux.HandleFunc("POST /login", authHandler.HandleLogin)
+	mux.HandleFunc("POST /auth/login", authHandler.HandleLogin)
 	mux.HandleFunc("GET /api/uploads/{filename}", coursesHandler.HandleServeUpload)
 	mux.Handle("GET /socket.io/", notifications.AsHTTPHandler(notificationsService))
 	mux.Handle("POST /socket.io/", notifications.AsHTTPHandler(notificationsService))
@@ -173,14 +174,25 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		allowedOriginCfg := os.Getenv("ALLOWED_ORIGIN")
+		isAllowedOrigin := isOriginAllowed(origin, allowedOriginCfg)
+
 		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("ALLOWED_ORIGIN"))
+		if isAllowedOrigin {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+		w.Header().Add("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token")
 		w.Header().Set("Access-Control-Allow-Credentials", "false") // Set to "true" if credentials are required
 
 		// Handle preflight requests
 		if r.Method == http.MethodOptions {
+			if origin != "" && !isAllowedOrigin {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
 			// 204 No Content: Modern browsers have a security feature: before they send a "risky" request (like a POST with JSON or a DELETE), they send a "test" request first to see if the server allows it.
 			// This test req comes with the OPTIONS HTTP method.
 			w.WriteHeader(http.StatusNoContent)
@@ -190,6 +202,30 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 		// Proceed with the next handler (here, our router/mux from above)
 		next.ServeHTTP(w, r)
 	})
+}
+
+func isOriginAllowed(requestOrigin, allowedOriginCfg string) bool {
+	if requestOrigin == "" {
+		return false
+	}
+
+	req := normalizeOrigin(requestOrigin)
+	for allowed := range strings.SplitSeq(allowedOriginCfg, ",") {
+		normalized := normalizeOrigin(allowed)
+		if normalized == "" {
+			continue
+		}
+		if normalized == "*" || normalized == req {
+			return true
+		}
+	}
+
+	return false
+}
+
+func normalizeOrigin(origin string) string {
+	trimmed := strings.TrimSpace(origin)
+	return strings.TrimRight(trimmed, "/")
 }
 
 func (s *Server) HelloWorldHandler(w http.ResponseWriter, r *http.Request) {
