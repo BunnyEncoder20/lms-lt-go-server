@@ -8,9 +8,11 @@ import (
 	"go-server/internal/admin"
 	"go-server/internal/auth"
 	"go-server/internal/courses"
+	"go-server/internal/learning"
 	"go-server/internal/middleware"
 	"go-server/internal/models"
 	"go-server/internal/nominations"
+	"go-server/internal/notifications"
 	"go-server/internal/trainings"
 	"go-server/internal/users"
 	"go-server/internal/utils"
@@ -45,6 +47,10 @@ func (s *Server) RegisterRoutes() http.Handler {
 	nominationsService := nominations.NewService(s.db)
 	nominationsHandler := nominations.NewHandler(nominationsService, s.log)
 
+	notificationsService := notifications.NewGatewayService(s.db, s.log)
+	learningService := learning.NewService(s.db, notificationsService)
+	learningHandler := learning.NewHandler(learningService, s.log)
+
 	coursesService := courses.NewService(s.db)
 	coursesHandler := courses.NewHandler(coursesService, s.log)
 
@@ -71,6 +77,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("GET /dbhealth", s.healthHandler)
 	mux.HandleFunc("POST /login", authHandler.HandleLogin)
 	mux.HandleFunc("GET /api/uploads/{filename}", coursesHandler.HandleServeUpload)
+	mux.Handle("GET /socket.io/", notifications.AsHTTPHandler(notificationsService))
+	mux.Handle("POST /socket.io/", notifications.AsHTTPHandler(notificationsService))
 
 	// --- Protected Routes
 	mux.Handle("GET /me", middleware.RequireAuth(http.HandlerFunc(authHandler.HandleMe)))
@@ -139,6 +147,19 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.Handle("DELETE /admin/lessons/{id}", applyMiddleware(http.HandlerFunc(coursesHandler.HandleDeleteLesson), adminOnlyMiddlewares...))
 	mux.Handle("PATCH /admin/lessons/reorder", applyMiddleware(http.HandlerFunc(coursesHandler.HandleReorderLessons), adminOnlyMiddlewares...))
 	mux.Handle("POST /admin/upload", applyMiddleware(http.HandlerFunc(coursesHandler.HandleUploadFile), adminOnlyMiddlewares...))
+
+	// Learning Endpoints
+	mux.Handle("GET /learning/admin/courses", applyMiddleware(http.HandlerFunc(learningHandler.HandleGetPublishedCourses), adminOnlyMiddlewares...))
+	mux.Handle("POST /learning/admin/assignments/bulk", applyMiddleware(http.HandlerFunc(learningHandler.HandleBulkAssign), adminOnlyMiddlewares...))
+	mux.Handle("GET /learning/admin/assignments", applyMiddleware(http.HandlerFunc(learningHandler.HandleGetAllAssignments), adminOnlyMiddlewares...))
+	mux.Handle("GET /learning/my", middleware.RequireAuth(http.HandlerFunc(learningHandler.HandleGetMyAssignments)))
+	mux.Handle("GET /learning/courses/{courseId}", middleware.RequireAuth(http.HandlerFunc(learningHandler.HandleGetCoursePlayer)))
+	mux.Handle("GET /learning/courses/{courseId}/navigation", middleware.RequireAuth(http.HandlerFunc(learningHandler.HandleGetCourseNavigation)))
+	mux.Handle("GET /learning/lessons/{lessonId}/next", middleware.RequireAuth(http.HandlerFunc(learningHandler.HandleGetNextLesson)))
+	mux.Handle("GET /learning/lessons/{lessonId}/previous", middleware.RequireAuth(http.HandlerFunc(learningHandler.HandleGetPreviousLesson)))
+	mux.Handle("PATCH /learning/progress/{lessonId}", middleware.RequireAuth(http.HandlerFunc(learningHandler.HandleUpdateProgress)))
+	mux.Handle("POST /learning/progress/heartbeat/{lessonId}", middleware.RequireAuth(http.HandlerFunc(learningHandler.HandleHeartbeatProgress)))
+	mux.Handle("POST /learning/progress/complete/{lessonId}", middleware.RequireAuth(http.HandlerFunc(learningHandler.HandleCompleteLesson)))
 
 	// Global Middlewares - these apply to all routes and are added at the end to wrap everything
 	globalMiddlewares := []Middleware{

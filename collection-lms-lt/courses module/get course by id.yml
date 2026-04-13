@@ -8,7 +8,7 @@ http:
   url: "{{base_url}}/admin/courses/:id"
   params:
     - name: id
-      value: 367c6c02-69ec-41ae-918b-a3840a55872b
+      value: cf551c48-6e2c-4375-b26c-29cd4dfc8d1d
       type: path
   auth: inherit
 

@@ -86,6 +86,18 @@ func (q *Queries) ConfirmAttendanceRequest(ctx context.Context, arg ConfirmAtten
 	return i, err
 }
 
+const countCompletedLessonProgressByAssignment = `-- name: CountCompletedLessonProgressByAssignment :one
+SELECT COUNT(*) FROM lesson_progress
+WHERE assignment_id = ? AND is_completed = 1
+`
+
+func (q *Queries) CountCompletedLessonProgressByAssignment(ctx context.Context, assignmentID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countCompletedLessonProgressByAssignment, assignmentID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countCourseAssignmentsByCourseID = `-- name: CountCourseAssignmentsByCourseID :one
 SELECT COUNT(*) FROM course_assignments
 WHERE course_id = ?
@@ -186,6 +198,18 @@ func (q *Queries) CountNominationsByUserID(ctx context.Context, userID uuid.UUID
 		&i.AttendedCount,
 	)
 	return i, err
+}
+
+const countStartedLessonProgressByAssignment = `-- name: CountStartedLessonProgressByAssignment :one
+SELECT COUNT(*) FROM lesson_progress
+WHERE assignment_id = ? AND (is_completed = 1 OR last_playback_position > 0)
+`
+
+func (q *Queries) CountStartedLessonProgressByAssignment(ctx context.Context, assignmentID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countStartedLessonProgressByAssignment, assignmentID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const countTeamMembers = `-- name: CountTeamMembers :one
@@ -1354,6 +1378,57 @@ func (q *Queries) GetClusterStats(ctx context.Context) ([]GetClusterStatsRow, er
 	return items, nil
 }
 
+const getCourseAssignmentByID = `-- name: GetCourseAssignmentByID :one
+SELECT id, status, progress_percentage, course_version, due_date, enrolled_at, completed_at, course_id, user_id, assigned_by_id FROM course_assignments
+WHERE id = ?
+`
+
+func (q *Queries) GetCourseAssignmentByID(ctx context.Context, id uuid.UUID) (CourseAssignment, error) {
+	row := q.db.QueryRowContext(ctx, getCourseAssignmentByID, id)
+	var i CourseAssignment
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.ProgressPercentage,
+		&i.CourseVersion,
+		&i.DueDate,
+		&i.EnrolledAt,
+		&i.CompletedAt,
+		&i.CourseID,
+		&i.UserID,
+		&i.AssignedByID,
+	)
+	return i, err
+}
+
+const getCourseAssignmentByUserCourse = `-- name: GetCourseAssignmentByUserCourse :one
+SELECT id, status, progress_percentage, course_version, due_date, enrolled_at, completed_at, course_id, user_id, assigned_by_id FROM course_assignments
+WHERE user_id = ? AND course_id = ?
+`
+
+type GetCourseAssignmentByUserCourseParams struct {
+	UserID   uuid.NullUUID `json:"user_id"`
+	CourseID uuid.UUID     `json:"course_id"`
+}
+
+func (q *Queries) GetCourseAssignmentByUserCourse(ctx context.Context, arg GetCourseAssignmentByUserCourseParams) (CourseAssignment, error) {
+	row := q.db.QueryRowContext(ctx, getCourseAssignmentByUserCourse, arg.UserID, arg.CourseID)
+	var i CourseAssignment
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.ProgressPercentage,
+		&i.CourseVersion,
+		&i.DueDate,
+		&i.EnrolledAt,
+		&i.CompletedAt,
+		&i.CourseID,
+		&i.UserID,
+		&i.AssignedByID,
+	)
+	return i, err
+}
+
 const getCourseByID = `-- name: GetCourseByID :one
 SELECT id, title, description, author_id, cover_image_url, status, category, estimated_duration, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at FROM courses
 WHERE id = ?
@@ -1541,6 +1616,30 @@ func (q *Queries) GetLessonByID(ctx context.Context, id uuid.UUID) (Lesson, erro
 		&i.ModuleID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getLessonProgressByAssignmentLesson = `-- name: GetLessonProgressByAssignmentLesson :one
+SELECT id, is_completed, last_playback_position, completed_at, assignment_id, lesson_id FROM lesson_progress
+WHERE assignment_id = ? AND lesson_id = ?
+`
+
+type GetLessonProgressByAssignmentLessonParams struct {
+	AssignmentID uuid.UUID `json:"assignment_id"`
+	LessonID     uuid.UUID `json:"lesson_id"`
+}
+
+func (q *Queries) GetLessonProgressByAssignmentLesson(ctx context.Context, arg GetLessonProgressByAssignmentLessonParams) (LessonProgress, error) {
+	row := q.db.QueryRowContext(ctx, getLessonProgressByAssignmentLesson, arg.AssignmentID, arg.LessonID)
+	var i LessonProgress
+	err := row.Scan(
+		&i.ID,
+		&i.IsCompleted,
+		&i.LastPlaybackPosition,
+		&i.CompletedAt,
+		&i.AssignmentID,
+		&i.LessonID,
 	)
 	return i, err
 }
@@ -2200,6 +2299,85 @@ func (q *Queries) ListCalendarPlans(ctx context.Context) ([]TrainingCalendarPlan
 	return items, nil
 }
 
+const listCourseAssignments = `-- name: ListCourseAssignments :many
+SELECT id, status, progress_percentage, course_version, due_date, enrolled_at, completed_at, course_id, user_id, assigned_by_id FROM course_assignments
+ORDER BY enrolled_at DESC
+`
+
+func (q *Queries) ListCourseAssignments(ctx context.Context) ([]CourseAssignment, error) {
+	rows, err := q.db.QueryContext(ctx, listCourseAssignments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CourseAssignment
+	for rows.Next() {
+		var i CourseAssignment
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.ProgressPercentage,
+			&i.CourseVersion,
+			&i.DueDate,
+			&i.EnrolledAt,
+			&i.CompletedAt,
+			&i.CourseID,
+			&i.UserID,
+			&i.AssignedByID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCourseAssignmentsByUserID = `-- name: ListCourseAssignmentsByUserID :many
+SELECT id, status, progress_percentage, course_version, due_date, enrolled_at, completed_at, course_id, user_id, assigned_by_id FROM course_assignments
+WHERE user_id = ?
+ORDER BY enrolled_at DESC
+`
+
+func (q *Queries) ListCourseAssignmentsByUserID(ctx context.Context, userID uuid.NullUUID) ([]CourseAssignment, error) {
+	rows, err := q.db.QueryContext(ctx, listCourseAssignmentsByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CourseAssignment
+	for rows.Next() {
+		var i CourseAssignment
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.ProgressPercentage,
+			&i.CourseVersion,
+			&i.DueDate,
+			&i.EnrolledAt,
+			&i.CompletedAt,
+			&i.CourseID,
+			&i.UserID,
+			&i.AssignedByID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCourseModulesByCourseID = `-- name: ListCourseModulesByCourseID :many
 SELECT id, title, course_id, description, sequence_order, created_at, updated_at FROM course_modules
 WHERE course_id = ?
@@ -2304,6 +2482,41 @@ func (q *Queries) ListCourses(ctx context.Context) ([]ListCoursesRow, error) {
 			&i.AuthorLastName,
 			&i.ModuleCount,
 			&i.AssignmentCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLessonProgressByAssignment = `-- name: ListLessonProgressByAssignment :many
+SELECT id, is_completed, last_playback_position, completed_at, assignment_id, lesson_id FROM lesson_progress
+WHERE assignment_id = ?
+`
+
+func (q *Queries) ListLessonProgressByAssignment(ctx context.Context, assignmentID uuid.UUID) ([]LessonProgress, error) {
+	rows, err := q.db.QueryContext(ctx, listLessonProgressByAssignment, assignmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LessonProgress
+	for rows.Next() {
+		var i LessonProgress
+		if err := rows.Scan(
+			&i.ID,
+			&i.IsCompleted,
+			&i.LastPlaybackPosition,
+			&i.CompletedAt,
+			&i.AssignmentID,
+			&i.LessonID,
 		); err != nil {
 			return nil, err
 		}
@@ -3013,6 +3226,48 @@ func (q *Queries) UpdateCourse(ctx context.Context, arg UpdateCourseParams) (Cou
 	return i, err
 }
 
+const updateCourseAssignmentProgress = `-- name: UpdateCourseAssignmentProgress :one
+UPDATE course_assignments SET
+    status = ?,
+    progress_percentage = ?,
+    completed_at = ?,
+    due_date = COALESCE(?5, due_date)
+WHERE id = ?
+RETURNING id, status, progress_percentage, course_version, due_date, enrolled_at, completed_at, course_id, user_id, assigned_by_id
+`
+
+type UpdateCourseAssignmentProgressParams struct {
+	Status             models.CourseAssignmentStatus `json:"status"`
+	ProgressPercentage float64                       `json:"progress_percentage"`
+	CompletedAt        sql.NullTime                  `json:"completed_at"`
+	DueDate            sql.NullTime                  `json:"due_date"`
+	ID                 uuid.UUID                     `json:"id"`
+}
+
+func (q *Queries) UpdateCourseAssignmentProgress(ctx context.Context, arg UpdateCourseAssignmentProgressParams) (CourseAssignment, error) {
+	row := q.db.QueryRowContext(ctx, updateCourseAssignmentProgress,
+		arg.Status,
+		arg.ProgressPercentage,
+		arg.CompletedAt,
+		arg.DueDate,
+		arg.ID,
+	)
+	var i CourseAssignment
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.ProgressPercentage,
+		&i.CourseVersion,
+		&i.DueDate,
+		&i.EnrolledAt,
+		&i.CompletedAt,
+		&i.CourseID,
+		&i.UserID,
+		&i.AssignedByID,
+	)
+	return i, err
+}
+
 const updateCourseModule = `-- name: UpdateCourseModule :one
 UPDATE course_modules SET
     title = ?,
@@ -3658,6 +3913,44 @@ func (q *Queries) UpsertLessonProgress(ctx context.Context, arg UpsertLessonProg
 		arg.IsCompleted,
 		arg.LastPlaybackPosition,
 		arg.CompletedAt,
+		arg.AssignmentID,
+		arg.LessonID,
+	)
+	var i LessonProgress
+	err := row.Scan(
+		&i.ID,
+		&i.IsCompleted,
+		&i.LastPlaybackPosition,
+		&i.CompletedAt,
+		&i.AssignmentID,
+		&i.LessonID,
+	)
+	return i, err
+}
+
+const upsertLessonProgressHeartbeat = `-- name: UpsertLessonProgressHeartbeat :one
+INSERT INTO lesson_progress (
+    id, is_completed, last_playback_position, completed_at,
+    assignment_id, lesson_id
+) VALUES (
+    ?, 0, ?, NULL, ?, ?
+)
+ON CONFLICT (assignment_id, lesson_id) DO UPDATE SET
+    last_playback_position = excluded.last_playback_position
+RETURNING id, is_completed, last_playback_position, completed_at, assignment_id, lesson_id
+`
+
+type UpsertLessonProgressHeartbeatParams struct {
+	ID                   uuid.UUID `json:"id"`
+	LastPlaybackPosition int64     `json:"last_playback_position"`
+	AssignmentID         uuid.UUID `json:"assignment_id"`
+	LessonID             uuid.UUID `json:"lesson_id"`
+}
+
+func (q *Queries) UpsertLessonProgressHeartbeat(ctx context.Context, arg UpsertLessonProgressHeartbeatParams) (LessonProgress, error) {
+	row := q.db.QueryRowContext(ctx, upsertLessonProgressHeartbeat,
+		arg.ID,
+		arg.LastPlaybackPosition,
 		arg.AssignmentID,
 		arg.LessonID,
 	)

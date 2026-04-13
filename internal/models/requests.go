@@ -193,3 +193,29 @@ type UpdateLessonRequest struct {
 type ReorderLessonsRequest struct {
 	Lessons []ReorderItemRequest `json:"lessons"`
 }
+
+// Learning Requests
+
+type BulkAssignRequest struct {
+	CourseID string   `json:"course_id"`
+	UserIDs  []string `json:"user_ids"`
+	DueDate  *string  `json:"due_date,omitempty"`
+}
+
+type UpdateProgressRequest struct {
+	IsCompleted          *bool  `json:"is_completed,omitempty"`
+	LastPlaybackPosition *int64 `json:"last_playback_position,omitempty"`
+}
+
+type HeartbeatProgressRequest struct {
+	LastPlaybackPosition int64 `json:"last_playback_position"`
+}
+
+type CompleteLessonRequest struct {
+	WatchedPercent  *float64 `json:"watched_percent,omitempty"`
+	ListenedPercent *float64 `json:"listened_percent,omitempty"`
+	ScrolledPercent *float64 `json:"scrolled_percent,omitempty"`
+	ViewedSeconds   *int64   `json:"viewed_seconds,omitempty"`
+	ReachedLastPage *bool    `json:"reached_last_page,omitempty"`
+	OpenedInLightbox *bool   `json:"opened_in_lightbox,omitempty"`
+}

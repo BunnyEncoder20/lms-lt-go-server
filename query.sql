@@ -680,6 +680,40 @@ INSERT INTO course_assignments (
 )
 RETURNING *;
 
+-- name: GetCourseAssignmentByID :one
+SELECT * FROM course_assignments
+WHERE id = ?;
+
+-- name: GetCourseAssignmentByUserCourse :one
+SELECT * FROM course_assignments
+WHERE user_id = ? AND course_id = ?;
+
+-- name: ListCourseAssignments :many
+SELECT * FROM course_assignments
+ORDER BY enrolled_at DESC;
+
+-- name: ListCourseAssignmentsByUserID :many
+SELECT * FROM course_assignments
+WHERE user_id = ?
+ORDER BY enrolled_at DESC;
+
+-- name: UpdateCourseAssignmentProgress :one
+UPDATE course_assignments SET
+    status = ?,
+    progress_percentage = ?,
+    completed_at = ?,
+    due_date = COALESCE(sqlc.narg('due_date'), due_date)
+WHERE id = ?
+RETURNING *;
+
+-- name: CountCompletedLessonProgressByAssignment :one
+SELECT COUNT(*) FROM lesson_progress
+WHERE assignment_id = ? AND is_completed = 1;
+
+-- name: CountStartedLessonProgressByAssignment :one
+SELECT COUNT(*) FROM lesson_progress
+WHERE assignment_id = ? AND (is_completed = 1 OR last_playback_position > 0);
+
 -- name: UpsertCourseAssignment :one
 INSERT INTO course_assignments (
     id, status, progress_percentage, course_version, due_date,
@@ -706,6 +740,25 @@ INSERT INTO lesson_progress (
 ON CONFLICT (assignment_id, lesson_id) DO UPDATE SET
     is_completed = excluded.is_completed,
     completed_at = excluded.completed_at,
+    last_playback_position = excluded.last_playback_position
+RETURNING *;
+
+-- name: GetLessonProgressByAssignmentLesson :one
+SELECT * FROM lesson_progress
+WHERE assignment_id = ? AND lesson_id = ?;
+
+-- name: ListLessonProgressByAssignment :many
+SELECT * FROM lesson_progress
+WHERE assignment_id = ?;
+
+-- name: UpsertLessonProgressHeartbeat :one
+INSERT INTO lesson_progress (
+    id, is_completed, last_playback_position, completed_at,
+    assignment_id, lesson_id
+) VALUES (
+    ?, 0, ?, NULL, ?, ?
+)
+ON CONFLICT (assignment_id, lesson_id) DO UPDATE SET
     last_playback_position = excluded.last_playback_position
 RETURNING *;
 

@@ -1,0 +1,30 @@
+info:
+  name: complete lesson
+  type: http
+  seq: 11
+
+http:
+  method: POST
+  url: "{{base_url}}/learning/progress/complete/:id"
+  params:
+    - name: id
+      value: de5c5b88-6e4d-4964-8e5d-61d4c81a31b0
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "watched_percent": 95,
+        "listened_percent": 95,
+        "scrolled_percent": 95,
+        "reached_last_page": true,
+        "opened_in_lightbox": true,
+        "viewed_seconds": 120
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

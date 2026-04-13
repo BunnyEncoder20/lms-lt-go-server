@@ -1,0 +1,19 @@
+info:
+  name: get next lesson
+  type: http
+  seq: 7
+
+http:
+  method: GET
+  url: "{{base_url}}/learning/lessons/:id/next"
+  params:
+    - name: id
+      value: de5c5b88-6e4d-4964-8e5d-61d4c81a31b0
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

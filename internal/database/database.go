@@ -80,7 +80,6 @@ func New() Service {
 // Implementing the functions needed by the DB_Service interface
 // So that service struct implements that interface
 func (s *service) Health() map[string]string {
-	log.Println("Checking the health of the database...")
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
@@ -126,7 +125,7 @@ func (s *service) Health() map[string]string {
 		stats["message"] = "Many connections are being closed due to max lifetime, consider increasing max lifetime or revising the connection usage pattern."
 	}
 
-	log.Println(stats["message"])
+	// log.Println(stats["message"])
 
 	return stats
 }

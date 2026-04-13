@@ -1,0 +1,26 @@
+info:
+  name: admin bulk assign course
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{base_url}}/learning/admin/assignments/bulk"
+  body:
+    type: json
+    data: |-
+      {
+        "course_id": "cf551c48-6e2c-4375-b26c-29cd4dfc8d1d",
+        "user_ids": [
+          "22222222-2222-2222-2222-222222222222",
+          "33333333-3333-3333-3333-333333333333"
+        ],
+        "due_date": "2026-12-31T23:59:59Z"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -243,3 +243,133 @@ type CourseDashboardStatsResponse struct {
 	CompletedAssignments int64 `json:"completed_assignments"`
 	CompletionRate       int64 `json:"completion_rate"`
 }
+
+type AssignmentCourseSummaryResponse struct {
+	ID                string                `json:"id"`
+	Title             string                `json:"title"`
+	Description       *string               `json:"description,omitempty"`
+	CoverImageURL     *string               `json:"cover_image_url,omitempty"`
+	Category          TrainingCategory      `json:"category"`
+	EstimatedDuration *int64                `json:"estimated_duration,omitempty"`
+	LearningOutcomes  []string              `json:"learning_outcomes"`
+	Version           int64                 `json:"version"`
+	Author            *CourseAuthorResponse `json:"author,omitempty"`
+	Count             CourseCountResponse   `json:"_count"`
+}
+
+type AssignmentSummaryResponse struct {
+	ID                 string                          `json:"id"`
+	Status             CourseAssignmentStatus          `json:"status"`
+	ProgressPercentage float64                         `json:"progress_percentage"`
+	CourseVersion      int64                           `json:"course_version"`
+	DueDate            *string                         `json:"due_date,omitempty"`
+	EnrolledAt         string                          `json:"enrolled_at"`
+	CompletedAt        *string                         `json:"completed_at,omitempty"`
+	Course             AssignmentCourseSummaryResponse `json:"course"`
+	User               *UserResponse                   `json:"user,omitempty"`
+	AssignedBy         *CourseAuthorResponse           `json:"assigned_by,omitempty"`
+}
+
+type LessonProgressStateResponse struct {
+	IsCompleted          bool    `json:"is_completed"`
+	LastPlaybackPosition int64   `json:"last_playback_position"`
+	CompletedAt          *string `json:"completed_at,omitempty"`
+}
+
+type PlayerLessonResponse struct {
+	ID              string                      `json:"id"`
+	Title           string                      `json:"title"`
+	ContentType     LessonContentType           `json:"content_type"`
+	AssetURL        *string                     `json:"asset_url,omitempty"`
+	RichTextContent *string                     `json:"rich_text_content,omitempty"`
+	DurationMinutes *int64                      `json:"duration_minutes,omitempty"`
+	SequenceOrder   int64                       `json:"sequence_order"`
+	Progress        LessonProgressStateResponse `json:"progress"`
+}
+
+type PlayerModuleResponse struct {
+	ID            string                 `json:"id"`
+	Title         string                 `json:"title"`
+	SequenceOrder int64                  `json:"sequence_order"`
+	Lessons       []PlayerLessonResponse `json:"lessons"`
+}
+
+type CoursePlayerResponse struct {
+	AssignmentID       string                 `json:"assignment_id"`
+	Status             CourseAssignmentStatus `json:"status"`
+	ProgressPercentage float64                `json:"progress_percentage"`
+	EnrolledAt         string                 `json:"enrolled_at"`
+	CompletedAt        *string                `json:"completed_at,omitempty"`
+	DueDate            *string                `json:"due_date,omitempty"`
+	Course             struct {
+		ID                 string                 `json:"id"`
+		Title              string                 `json:"title"`
+		Description        *string                `json:"description,omitempty"`
+		CoverImageURL      *string                `json:"cover_image_url,omitempty"`
+		Category           TrainingCategory       `json:"category"`
+		EstimatedDuration  *int64                 `json:"estimated_duration,omitempty"`
+		LearningOutcomes   []string               `json:"learning_outcomes"`
+		IsStrictSequencing bool                   `json:"is_strict_sequencing"`
+		Author             *CourseAuthorResponse  `json:"author,omitempty"`
+		Modules            []PlayerModuleResponse `json:"modules"`
+	} `json:"course"`
+}
+
+type NavigationLessonResponse struct {
+	ID            string                      `json:"id"`
+	Title         string                      `json:"title"`
+	SequenceOrder int64                       `json:"sequence_order"`
+	Status        string                      `json:"status"`
+	Locked        bool                        `json:"locked"`
+	Progress      LessonProgressStateResponse `json:"progress"`
+}
+
+type NavigationModuleResponse struct {
+	ID            string                     `json:"id"`
+	Title         string                     `json:"title"`
+	SequenceOrder int64                      `json:"sequence_order"`
+	Lessons       []NavigationLessonResponse `json:"lessons"`
+}
+
+type CourseNavigationResponse struct {
+	Course struct {
+		ID                string `json:"id"`
+		Title             string `json:"title"`
+		IsStrictSequencing bool  `json:"is_strict_sequencing"`
+	} `json:"course"`
+	Assignment struct {
+		ID                string                 `json:"id"`
+		Status            CourseAssignmentStatus `json:"status"`
+		ProgressPercentage float64               `json:"progress_percentage"`
+	} `json:"assignment"`
+	Modules []NavigationModuleResponse `json:"modules"`
+}
+
+type AdjacentLessonResponse struct {
+	CurrentLessonID string `json:"current_lesson_id"`
+	Direction       string `json:"direction"`
+	Lesson          *struct {
+		ID            string `json:"id"`
+		Title         string `json:"title"`
+		SequenceOrder int64  `json:"sequence_order"`
+		Module        struct {
+			ID            string `json:"id"`
+			Title         string `json:"title"`
+			SequenceOrder int64  `json:"sequence_order"`
+		} `json:"module"`
+	} `json:"lesson"`
+}
+
+type LessonProgressMutationResponse struct {
+	Progress struct {
+		ID                   string  `json:"id"`
+		IsCompleted          bool    `json:"is_completed"`
+		LastPlaybackPosition int64   `json:"last_playback_position"`
+		CompletedAt          *string `json:"completed_at,omitempty"`
+	} `json:"progress"`
+	Assignment struct {
+		ID                string                 `json:"id"`
+		Status            CourseAssignmentStatus `json:"status"`
+		ProgressPercentage float64               `json:"progress_percentage"`
+	} `json:"assignment"`
+}

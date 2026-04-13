@@ -1,0 +1,26 @@
+info:
+  name: update lesson progress
+  type: http
+  seq: 9
+
+http:
+  method: PATCH
+  url: "{{base_url}}/learning/progress/:id"
+  params:
+    - name: id
+      value: de5c5b88-6e4d-4964-8e5d-61d4c81a31b0
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "last_playback_position": 420,
+        "is_completed": false
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
