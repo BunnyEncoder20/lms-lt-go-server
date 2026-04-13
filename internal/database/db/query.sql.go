@@ -597,6 +597,46 @@ func (q *Queries) CreateHistoricalRecord(ctx context.Context, arg CreateHistoric
 	return err
 }
 
+const createHrNotification = `-- name: CreateHrNotification :one
+INSERT INTO hr_notifications (
+    id, type, title, message, payload, created_at
+) VALUES (
+    ?, ?, ?, ?, ?, ?
+)
+RETURNING id, type, title, message, payload, created_at
+`
+
+type CreateHrNotificationParams struct {
+	ID        uuid.UUID                 `json:"id"`
+	Type      models.HrNotificationType `json:"type"`
+	Title     string                    `json:"title"`
+	Message   string                    `json:"message"`
+	Payload   string                    `json:"payload"`
+	CreatedAt time.Time                 `json:"created_at"`
+}
+
+// HR NOTIFICATIONS
+func (q *Queries) CreateHrNotification(ctx context.Context, arg CreateHrNotificationParams) (HrNotification, error) {
+	row := q.db.QueryRowContext(ctx, createHrNotification,
+		arg.ID,
+		arg.Type,
+		arg.Title,
+		arg.Message,
+		arg.Payload,
+		arg.CreatedAt,
+	)
+	var i HrNotification
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Title,
+		&i.Message,
+		&i.Payload,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createLesson = `-- name: CreateLesson :one
 INSERT INTO lessons (
     id, title, content_type, asset_url, rich_text_content,
@@ -2482,6 +2522,42 @@ func (q *Queries) ListCourses(ctx context.Context) ([]ListCoursesRow, error) {
 			&i.AuthorLastName,
 			&i.ModuleCount,
 			&i.AssignmentCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listHrNotifications = `-- name: ListHrNotifications :many
+SELECT id, type, title, message, payload, created_at FROM hr_notifications
+ORDER BY created_at DESC
+LIMIT ?
+`
+
+func (q *Queries) ListHrNotifications(ctx context.Context, limit int64) ([]HrNotification, error) {
+	rows, err := q.db.QueryContext(ctx, listHrNotifications, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []HrNotification
+	for rows.Next() {
+		var i HrNotification
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Title,
+			&i.Message,
+			&i.Payload,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}

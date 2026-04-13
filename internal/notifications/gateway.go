@@ -2,15 +2,18 @@ package notifications
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"go-server/internal/auth"
 	"go-server/internal/database"
+	"go-server/internal/database/db"
 	"go-server/internal/models"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -75,18 +78,95 @@ func (s *gatewayService) Handler() any {
 	return s.server
 }
 
-func (s *gatewayService) PublishHrEvent(_ context.Context, event HrEvent) {
-	s.server.BroadcastToRoom("/notifications", s.roleRoom(string(models.RoleAdmin)), "hr:event", event)
+func (s *gatewayService) PublishHrEvent(ctx context.Context, event HrEvent) (models.HrNotificationEventResponse, error) {
+	saved, err := s.SaveHrEvent(ctx, event)
+	if err != nil {
+		return models.HrNotificationEventResponse{}, err
+	}
+
+	s.server.BroadcastToRoom("/notifications", s.roleRoom(string(models.RoleAdmin)), "hr.notification", saved)
+	return saved, nil
 }
 
-func (s *gatewayService) PublishDashboardSyncForUser(_ context.Context, userID, role, reason, courseID string) {
-	payload := map[string]any{
-		"reason":    reason,
-		"course_id": courseID,
-		"user_id":   userID,
+func (s *gatewayService) SaveHrEvent(ctx context.Context, event HrEvent) (models.HrNotificationEventResponse, error) {
+	payload := event.Payload
+	if payload == nil {
+		payload = map[string]any{}
 	}
-	s.server.BroadcastToRoom("/notifications", s.userRoom(userID), "dashboard:sync", payload)
-	s.server.BroadcastToRoom("/notifications", s.roleRoom(role), "dashboard:sync", payload)
+
+	payloadRaw, err := json.Marshal(payload)
+	if err != nil {
+		return models.HrNotificationEventResponse{}, err
+	}
+
+	row, err := s.db.Write().CreateHrNotification(ctx, db.CreateHrNotificationParams{
+		ID:        uuid.New(),
+		Type:      event.Type,
+		Title:     event.Title,
+		Message:   event.Message,
+		Payload:   string(payloadRaw),
+		CreatedAt: time.Now().UTC(),
+	})
+	if err != nil {
+		return models.HrNotificationEventResponse{}, err
+	}
+
+	return mapHrNotificationRow(row), nil
+}
+
+func (s *gatewayService) GetHrFeed(ctx context.Context, limit int) ([]models.HrNotificationEventResponse, error) {
+	safeLimit := int64(30)
+	if limit > 0 {
+		safeLimit = int64(limit)
+	}
+	if safeLimit < 1 {
+		safeLimit = 1
+	}
+	if safeLimit > 100 {
+		safeLimit = 100
+	}
+
+	rows, err := s.db.Read().ListHrNotifications(ctx, safeLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]models.HrNotificationEventResponse, len(rows))
+	for i, row := range rows {
+		items[i] = mapHrNotificationRow(row)
+	}
+
+	return items, nil
+}
+
+func (s *gatewayService) PublishDashboardSyncForUser(_ context.Context, userID string, scope DashboardScope, reason string, entityID *string) {
+	payload := map[string]any{
+		"scope":    scope,
+		"reason":   reason,
+		"issuedAt": time.Now().UTC().Format(time.RFC3339),
+	}
+	if entityID != nil && *entityID != "" {
+		payload["entityId"] = *entityID
+	}
+
+	s.server.BroadcastToRoom("/notifications", s.userRoom(userID), "dashboard.sync", payload)
+}
+
+func (s *gatewayService) PublishDashboardSyncForRole(_ context.Context, role DashboardScope, reason string, entityID *string) {
+	payload := map[string]any{
+		"scope":    role,
+		"reason":   reason,
+		"issuedAt": time.Now().UTC().Format(time.RFC3339),
+	}
+	if entityID != nil && *entityID != "" {
+		payload["entityId"] = *entityID
+	}
+
+	s.server.BroadcastToRoom("/notifications", s.roleRoom(string(role)), "dashboard.sync", payload)
+}
+
+func (s *gatewayService) PublishUserEvent(_ context.Context, userID, eventName string, payload any) {
+	s.server.BroadcastToRoom("/notifications", s.userRoom(userID), eventName, payload)
 }
 
 type dbUser struct {
@@ -136,9 +216,19 @@ func (s *gatewayService) authenticate(conn socketio.Conn) (dbUser, error) {
 }
 
 func (s *gatewayService) extractToken(conn socketio.Conn) string {
+	if val := strings.TrimSpace(conn.RemoteHeader().Get("X-Auth-Token")); val != "" {
+		return val
+	}
+
 	if raw := conn.URL().RawQuery; raw != "" {
 		values, err := url.ParseQuery(raw)
 		if err == nil {
+			if val := strings.TrimSpace(values.Get("auth[token]")); val != "" {
+				return val
+			}
+			if val := strings.TrimSpace(values.Get("authToken")); val != "" {
+				return val
+			}
 			if val := strings.TrimSpace(values.Get("token")); val != "" {
 				return val
 			}
@@ -172,4 +262,20 @@ func AsHTTPHandler(svc Service) http.Handler {
 		return http.NotFoundHandler()
 	}
 	return h
+}
+
+func mapHrNotificationRow(row db.HrNotification) models.HrNotificationEventResponse {
+	payload := map[string]any{}
+	if row.Payload != "" {
+		_ = json.Unmarshal([]byte(row.Payload), &payload)
+	}
+
+	return models.HrNotificationEventResponse{
+		ID:        row.ID.String(),
+		Type:      row.Type,
+		Title:     row.Title,
+		Message:   row.Message,
+		CreatedAt: row.CreatedAt.UTC().Format(time.RFC3339),
+		Payload:   payload,
+	}
 }

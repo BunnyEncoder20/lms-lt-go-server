@@ -48,6 +48,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	nominationsHandler := nominations.NewHandler(nominationsService, s.log)
 
 	notificationsService := notifications.NewGatewayService(s.db, s.log)
+	notificationsHandler := notifications.NewHandler(notificationsService, s.log)
 	learningService := learning.NewService(s.db, notificationsService)
 	learningHandler := learning.NewHandler(learningService, s.log)
 
@@ -82,6 +83,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	// --- Protected Routes
 	mux.Handle("GET /me", middleware.RequireAuth(http.HandlerFunc(authHandler.HandleMe)))
+	mux.Handle("GET /notifications/feed", applyMiddleware(http.HandlerFunc(notificationsHandler.HandleGetHrFeed), adminOnlyMiddlewares...))
 
 	// User Management
 	mux.Handle("GET /my-team", applyMiddleware(http.HandlerFunc(usersHandler.HandleGetMyTeam), managerOrAdminMiddlewares...))

@@ -1,0 +1,7 @@
+info:
+  name: notifications module
+  type: folder
+  seq: 8
+
+request:
+  auth: inherit

@@ -112,6 +112,15 @@ type HistoricalTrainingRecord struct {
 	CreatedAt        time.Time       `json:"created_at"`
 }
 
+type HrNotification struct {
+	ID        uuid.UUID                 `json:"id"`
+	Type      models.HrNotificationType `json:"type"`
+	Title     string                    `json:"title"`
+	Message   string                    `json:"message"`
+	Payload   string                    `json:"payload"`
+	CreatedAt time.Time                 `json:"created_at"`
+}
+
 type Lesson struct {
 	ID              uuid.UUID                `json:"id"`
 	Title           string                   `json:"title"`

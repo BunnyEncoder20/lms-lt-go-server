@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"sort"
 	"time"
@@ -119,49 +120,83 @@ func (s *service) BulkAssign(ctx context.Context, dto models.BulkAssignRequest, 
 	}
 
 	results := make([]any, 0, len(dto.UserIDs))
-	for _, userID := range dto.UserIDs {
-		uid, parseErr := uuid.Parse(userID)
-		if parseErr != nil {
-			results = append(results, map[string]any{"userId": userID, "status": "invalid_user_id"})
-			continue
-		}
+	successUserIDs := make([]string, 0, len(dto.UserIDs))
 
-		_, err := s.db.Read().GetCourseAssignmentByUserCourse(ctx, db.GetCourseAssignmentByUserCourseParams{
-			UserID:   uuid.NullUUID{UUID: uid, Valid: true},
-			CourseID: courseID,
-		})
-		if err == nil {
-			results = append(results, map[string]any{
-				"userId": userID,
-				"status": "already_assigned",
+	err = s.db.ExecTx(ctx, func(qtx *db.Queries) error {
+		for _, userID := range dto.UserIDs {
+			uid, parseErr := uuid.Parse(userID)
+			if parseErr != nil {
+				results = append(results, map[string]any{"userId": userID, "status": "invalid_user_id"})
+				continue
+			}
+
+			_, getErr := qtx.GetCourseAssignmentByUserCourse(ctx, db.GetCourseAssignmentByUserCourseParams{
+				UserID:   uuid.NullUUID{UUID: uid, Valid: true},
+				CourseID: courseID,
 			})
-			continue
+			if getErr == nil {
+				results = append(results, map[string]any{"userId": userID, "status": "already_assigned"})
+				continue
+			}
+			if !errors.Is(getErr, sql.ErrNoRows) {
+				return getErr
+			}
+
+			assignment, createErr := qtx.CreateCourseAssignment(ctx, db.CreateCourseAssignmentParams{
+				ID:                 uuid.New(),
+				Status:             models.AssignmentNotStarted,
+				ProgressPercentage: 0,
+				CourseVersion:      course.Version,
+				DueDate:            dueDate,
+				CourseID:           courseID,
+				UserID:             uuid.NullUUID{UUID: uid, Valid: true},
+				AssignedByID:       uuid.NullUUID{UUID: assignerID, Valid: true},
+			})
+			if createErr != nil {
+				results = append(results, map[string]any{"userId": userID, "status": "failed", "reason": createErr.Error()})
+				continue
+			}
+
+			summary, mapErr := s.mapAssignmentSummary(ctx, assignment)
+			if mapErr != nil {
+				return mapErr
+			}
+			results = append(results, summary)
+			successUserIDs = append(successUserIDs, userID)
 		}
 
-		if !errors.Is(err, sql.ErrNoRows) {
-			return nil, err
-		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
 
-		assignment, createErr := s.db.Write().CreateCourseAssignment(ctx, db.CreateCourseAssignmentParams{
-			ID:                 uuid.New(),
-			Status:             models.AssignmentNotStarted,
-			ProgressPercentage: 0,
-			CourseVersion:      course.Version,
-			DueDate:            dueDate,
-			CourseID:           courseID,
-			UserID:             uuid.NullUUID{UUID: uid, Valid: true},
-			AssignedByID:       uuid.NullUUID{UUID: assignerID, Valid: true},
-		})
-		if createErr != nil {
-			results = append(results, map[string]any{"userId": userID, "status": "failed", "reason": createErr.Error()})
-			continue
-		}
+	if len(successUserIDs) > 0 {
+		usersCopy := append([]string(nil), successUserIDs...)
+		courseIDCopy := courseID.String()
+		go func(users []string, cid string) {
+			for _, uid := range users {
+				_, publishErr := s.notifications.PublishHrEvent(context.Background(), notifications.HrEvent{
+					Type:    models.HrNotificationCourseAssigned,
+					Title:   "Course Assigned",
+					Message: "You have a new mandatory course.",
+					Payload: map[string]any{
+						"courseId": cid,
+						"userId":   uid,
+					},
+				})
+				if publishErr != nil {
+					slog.Default().Error("failed publishing COURSE_ASSIGNED notification", "user_id", uid, "course_id", cid, "error", publishErr)
+					continue
+				}
 
-		summary, mapErr := s.mapAssignmentSummary(ctx, assignment)
-		if mapErr != nil {
-			return nil, mapErr
-		}
-		results = append(results, summary)
+				s.notifications.PublishUserEvent(context.Background(), uid, "hr.notification", map[string]any{
+					"type":     models.HrNotificationCourseAssigned,
+					"message":  "You have a new mandatory course.",
+					"courseId": cid,
+				})
+			}
+		}(usersCopy, courseIDCopy)
 	}
 
 	return results, nil
@@ -775,8 +810,8 @@ func (s *service) CompleteLesson(ctx context.Context, lessonID string, userID st
 	user, _ := s.db.Read().GetUserByID(ctx, uid)
 	learnerName := fmt.Sprintf("%s %s", user.FirstName, user.LastName)
 
-	s.notifications.PublishHrEvent(ctx, notifications.HrEvent{
-		Type:    "LESSON_COMPLETED",
+	_, _ = s.notifications.PublishHrEvent(ctx, notifications.HrEvent{
+		Type:    models.HrNotificationLessonCompleted,
 		Title:   "Lesson Completed",
 		Message: fmt.Sprintf("%s completed \"%s\".", learnerName, lesson.Title),
 		Payload: map[string]any{
@@ -791,8 +826,8 @@ func (s *service) CompleteLesson(ctx context.Context, lessonID string, userID st
 	})
 
 	if result.Assignment.Status == models.AssignmentCompleted {
-		s.notifications.PublishHrEvent(ctx, notifications.HrEvent{
-			Type:    "COURSE_COMPLETED",
+		_, _ = s.notifications.PublishHrEvent(ctx, notifications.HrEvent{
+			Type:    models.HrNotificationCourseCompleted,
 			Title:   "Course Completed",
 			Message: fmt.Sprintf("%s has completed the full course \"%s\".", learnerName, course.Title),
 			Payload: map[string]any{
@@ -809,7 +844,8 @@ func (s *service) CompleteLesson(ctx context.Context, lessonID string, userID st
 	if user.Role == models.RoleManager {
 		role = "MANAGER"
 	}
-	s.notifications.PublishDashboardSyncForUser(ctx, uid.String(), role, "learning-progress-updated", module.CourseID.String())
+	courseIDStr := module.CourseID.String()
+	s.notifications.PublishDashboardSyncForUser(ctx, uid.String(), notifications.DashboardScope(role), "learning-progress-updated", &courseIDStr)
 
 	return result, nil
 }

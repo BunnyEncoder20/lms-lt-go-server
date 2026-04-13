@@ -333,14 +333,14 @@ type NavigationModuleResponse struct {
 
 type CourseNavigationResponse struct {
 	Course struct {
-		ID                string `json:"id"`
-		Title             string `json:"title"`
-		IsStrictSequencing bool  `json:"is_strict_sequencing"`
+		ID                 string `json:"id"`
+		Title              string `json:"title"`
+		IsStrictSequencing bool   `json:"is_strict_sequencing"`
 	} `json:"course"`
 	Assignment struct {
-		ID                string                 `json:"id"`
-		Status            CourseAssignmentStatus `json:"status"`
-		ProgressPercentage float64               `json:"progress_percentage"`
+		ID                 string                 `json:"id"`
+		Status             CourseAssignmentStatus `json:"status"`
+		ProgressPercentage float64                `json:"progress_percentage"`
 	} `json:"assignment"`
 	Modules []NavigationModuleResponse `json:"modules"`
 }
@@ -368,8 +368,21 @@ type LessonProgressMutationResponse struct {
 		CompletedAt          *string `json:"completed_at,omitempty"`
 	} `json:"progress"`
 	Assignment struct {
-		ID                string                 `json:"id"`
-		Status            CourseAssignmentStatus `json:"status"`
-		ProgressPercentage float64               `json:"progress_percentage"`
+		ID                 string                 `json:"id"`
+		Status             CourseAssignmentStatus `json:"status"`
+		ProgressPercentage float64                `json:"progress_percentage"`
 	} `json:"assignment"`
+}
+
+type HrNotificationEventResponse struct {
+	ID        string             `json:"id"`
+	Type      HrNotificationType `json:"type"`
+	Title     string             `json:"title"`
+	Message   string             `json:"message"`
+	CreatedAt string             `json:"created_at"`
+	Payload   map[string]any     `json:"payload"`
+}
+
+type HrNotificationFeedResponse struct {
+	Items []HrNotificationEventResponse `json:"items"`
 }

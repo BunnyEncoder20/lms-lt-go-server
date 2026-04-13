@@ -15,13 +15,13 @@ type NominationStatus string
 
 const (
 	NomPendingManagerAssignment NominationStatus = "PENDING_MANAGER_ASSIGNMENT"
-	NomPendingEmployeeApproval   NominationStatus = "PENDING_EMPLOYEE_APPROVAL"
-	NomEnrolled                  NominationStatus = "ENROLLED"
-	NomPendingManagerApproval    NominationStatus = "PENDING_MANAGER_APPROVAL"
-	NomDeclined                  NominationStatus = "DECLINED"
-	NomRejected                  NominationStatus = "REJECTED"
-	NomCompleted                 NominationStatus = "COMPLETED"
-	NomAttended                  NominationStatus = "ATTENDED"
+	NomPendingEmployeeApproval  NominationStatus = "PENDING_EMPLOYEE_APPROVAL"
+	NomEnrolled                 NominationStatus = "ENROLLED"
+	NomPendingManagerApproval   NominationStatus = "PENDING_MANAGER_APPROVAL"
+	NomDeclined                 NominationStatus = "DECLINED"
+	NomRejected                 NominationStatus = "REJECTED"
+	NomCompleted                NominationStatus = "COMPLETED"
+	NomAttended                 NominationStatus = "ATTENDED"
 )
 
 // CourseStatus represents the status of a course in the system.
@@ -63,6 +63,15 @@ const (
 	AssignmentNotStarted CourseAssignmentStatus = "NOT_STARTED"
 	AssignmentInProgress CourseAssignmentStatus = "IN_PROGRESS"
 	AssignmentCompleted  CourseAssignmentStatus = "COMPLETED"
+)
+
+// HrNotificationType represents allowed HR feed event categories.
+type HrNotificationType string
+
+const (
+	HrNotificationLessonCompleted HrNotificationType = "LESSON_COMPLETED"
+	HrNotificationCourseCompleted HrNotificationType = "COURSE_COMPLETED"
+	HrNotificationCourseAssigned  HrNotificationType = "COURSE_ASSIGNED"
 )
 
 // CalendarPlanStatus enum represents the status of the planned events of calendar

@@ -56,6 +56,8 @@ sql:
             go_type: "go-server/internal/models.LessonContentType"
           - column: "course_assignments.status"
             go_type: "go-server/internal/models.CourseAssignmentStatus"
+          - column: "hr_notifications.type"
+            go_type: "go-server/internal/models.HrNotificationType"
           - column: "training_calendar_plans.status"
             go_type: "go-server/internal/models.CalendarPlanStatus"
           - column: "trainings.mode_of_delivery"

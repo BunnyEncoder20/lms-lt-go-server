@@ -212,10 +212,10 @@ type HeartbeatProgressRequest struct {
 }
 
 type CompleteLessonRequest struct {
-	WatchedPercent  *float64 `json:"watched_percent,omitempty"`
-	ListenedPercent *float64 `json:"listened_percent,omitempty"`
-	ScrolledPercent *float64 `json:"scrolled_percent,omitempty"`
-	ViewedSeconds   *int64   `json:"viewed_seconds,omitempty"`
-	ReachedLastPage *bool    `json:"reached_last_page,omitempty"`
-	OpenedInLightbox *bool   `json:"opened_in_lightbox,omitempty"`
+	WatchedPercent   *float64 `json:"watched_percent,omitempty"`
+	ListenedPercent  *float64 `json:"listened_percent,omitempty"`
+	ScrolledPercent  *float64 `json:"scrolled_percent,omitempty"`
+	ViewedSeconds    *int64   `json:"viewed_seconds,omitempty"`
+	ReachedLastPage  *bool    `json:"reached_last_page,omitempty"`
+	OpenedInLightbox *bool    `json:"opened_in_lightbox,omitempty"`
 }

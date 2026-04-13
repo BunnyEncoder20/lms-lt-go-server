@@ -354,6 +354,22 @@ CREATE TABLE IF NOT EXISTS lesson_progress (
     UNIQUE (assignment_id, lesson_id)
 );
 
+-- HR NOTIFICATIONS TABLE --
+CREATE TABLE IF NOT EXISTS hr_notifications (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL CHECK (
+        type IN ('LESSON_COMPLETED', 'COURSE_COMPLETED', 'COURSE_ASSIGNED')
+    ),
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    payload TEXT NOT NULL DEFAULT '{}',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_hr_notifications_created_at ON hr_notifications (
+    created_at DESC
+);
+
 -- MANAGER ALLOCATIONS TABLE --
 CREATE TABLE IF NOT EXISTS manager_allocations (
     id TEXT PRIMARY KEY,

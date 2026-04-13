@@ -762,6 +762,20 @@ ON CONFLICT (assignment_id, lesson_id) DO UPDATE SET
     last_playback_position = excluded.last_playback_position
 RETURNING *;
 
+-- HR NOTIFICATIONS
+-- name: CreateHrNotification :one
+INSERT INTO hr_notifications (
+    id, type, title, message, payload, created_at
+) VALUES (
+    ?, ?, ?, ?, ?, ?
+)
+RETURNING *;
+
+-- name: ListHrNotifications :many
+SELECT * FROM hr_notifications
+ORDER BY created_at DESC
+LIMIT ?;
+
 -- name: ListLessonsByCourse :many
 SELECT l.* FROM lessons l
 JOIN course_modules m ON l.module_id = m.id
