@@ -1,0 +1,28 @@
+info:
+  name: reorder modules
+  type: http
+  seq: 15
+
+http:
+  method: PATCH
+  url: "{{base_url}}/admin/modules/reorder"
+  body:
+    type: json
+    data: |-
+      {
+        "modules": [
+          {
+            "id": "22222222-2222-2222-2222-222222222222"
+          },
+          {
+            "id": "33333333-3333-3333-3333-333333333333"
+          }
+        ]
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

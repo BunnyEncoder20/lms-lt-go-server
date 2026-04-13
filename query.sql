@@ -432,6 +432,115 @@ LEFT JOIN users u ON c.author_id = u.id
 WHERE c.id = ?
 LIMIT 1;
 
+-- name: GetCourseByID :one
+SELECT * FROM courses
+WHERE id = ?;
+
+-- name: ListCourses :many
+SELECT
+    c.*,
+    u.first_name AS author_first_name,
+    u.last_name AS author_last_name,
+    (
+        SELECT COUNT(*) FROM course_modules cm
+        WHERE cm.course_id = c.id
+    ) AS module_count,
+    (
+        SELECT COUNT(*) FROM course_assignments ca
+        WHERE ca.course_id = c.id
+    ) AS assignment_count
+FROM courses c
+LEFT JOIN users u ON c.author_id = u.id
+ORDER BY c.updated_at DESC;
+
+-- name: ListPublishedCourses :many
+SELECT
+    c.*,
+    u.first_name AS author_first_name,
+    u.last_name AS author_last_name,
+    (
+        SELECT COUNT(*) FROM course_modules cm
+        WHERE cm.course_id = c.id
+    ) AS module_count,
+    (
+        SELECT COUNT(*) FROM course_assignments ca
+        WHERE ca.course_id = c.id
+    ) AS assignment_count
+FROM courses c
+LEFT JOIN users u ON c.author_id = u.id
+WHERE c.status = 'PUBLISHED'
+ORDER BY c.updated_at DESC;
+
+-- name: UpdateCourse :one
+UPDATE courses SET
+    title = ?,
+    description = ?,
+    cover_image_url = ?,
+    status = ?,
+    category = ?,
+    estimated_duration = ?,
+    learning_outcomes = ?,
+    is_strict_sequencing = ?,
+    published_at = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING *;
+
+-- name: PublishCourse :one
+UPDATE courses SET
+    status = 'PUBLISHED',
+    published_at = CURRENT_TIMESTAMP,
+    version = version + 1,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING *;
+
+-- name: ArchiveCourse :one
+UPDATE courses SET
+    status = 'ARCHIVED',
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING *;
+
+-- name: RestoreCourse :one
+UPDATE courses SET
+    status = 'DRAFT',
+    published_at = NULL,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING *;
+
+-- name: DeleteCourseByID :exec
+DELETE FROM courses
+WHERE id = ?;
+
+-- name: CountCourseModules :one
+SELECT COUNT(*) FROM course_modules
+WHERE course_id = ?;
+
+-- name: CountCourseLessons :one
+SELECT COUNT(*) FROM lessons l
+JOIN course_modules cm ON l.module_id = cm.id
+WHERE cm.course_id = ?;
+
+-- name: CountCourseAssignmentsByCourseID :one
+SELECT COUNT(*) FROM course_assignments
+WHERE course_id = ?;
+
+-- name: GetCourseDashboardStats :one
+SELECT
+    COUNT(*) AS total_courses,
+    SUM(CASE WHEN status = 'PUBLISHED' THEN 1 ELSE 0 END) AS published,
+    SUM(CASE WHEN status = 'DRAFT' THEN 1 ELSE 0 END) AS draft,
+    SUM(CASE WHEN status = 'ARCHIVED' THEN 1 ELSE 0 END) AS archived,
+    (SELECT COUNT(*) FROM lessons) AS total_lessons,
+    (SELECT COUNT(*) FROM course_assignments) AS total_assignments,
+    (
+        SELECT COUNT(*) FROM course_assignments
+        WHERE status = 'COMPLETED'
+    ) AS completed_assignments
+FROM courses;
+
 -- name: CreateCourseModule :one
 INSERT INTO course_modules (
     id, title, course_id, description, sequence_order
@@ -451,6 +560,38 @@ ON CONFLICT (course_id, title) DO UPDATE SET
     sequence_order = excluded.sequence_order,
     updated_at = CURRENT_TIMESTAMP
 RETURNING *;
+
+-- name: GetCourseModuleByID :one
+SELECT * FROM course_modules
+WHERE id = ?;
+
+-- name: ListCourseModulesByCourseID :many
+SELECT * FROM course_modules
+WHERE course_id = ?
+ORDER BY sequence_order ASC;
+
+-- name: GetMaxCourseModuleOrder :one
+SELECT COALESCE(MAX(sequence_order), 0) FROM course_modules
+WHERE course_id = ?;
+
+-- name: UpdateCourseModule :one
+UPDATE course_modules SET
+    title = ?,
+    description = ?,
+    sequence_order = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING *;
+
+-- name: ReorderCourseModule :exec
+UPDATE course_modules SET
+    sequence_order = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?;
+
+-- name: DeleteCourseModuleByID :exec
+DELETE FROM course_modules
+WHERE id = ?;
 
 -- LESSON
 -- name: CreateLesson :one
@@ -477,6 +618,57 @@ ON CONFLICT (module_id, title) DO UPDATE SET
     sequence_order = excluded.sequence_order,
     updated_at = CURRENT_TIMESTAMP
 RETURNING *;
+
+-- name: GetLessonByID :one
+SELECT * FROM lessons
+WHERE id = ?;
+
+-- name: ListLessonsByModuleID :many
+SELECT * FROM lessons
+WHERE module_id = ?
+ORDER BY sequence_order ASC;
+
+-- name: GetMaxLessonOrder :one
+SELECT COALESCE(MAX(sequence_order), 0) FROM lessons
+WHERE module_id = ?;
+
+-- name: UpdateLesson :one
+UPDATE lessons SET
+    title = ?,
+    content_type = ?,
+    asset_url = ?,
+    rich_text_content = ?,
+    duration_minutes = ?,
+    sequence_order = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING *;
+
+-- name: ReorderLesson :exec
+UPDATE lessons SET
+    sequence_order = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?;
+
+-- name: DeleteLessonByID :exec
+DELETE FROM lessons
+WHERE id = ?;
+
+-- name: DeleteAttendanceDispatchesByCourseID :exec
+DELETE FROM attendance_dispatches
+WHERE course_id = ?;
+
+-- name: DeleteNominationsByCourseID :exec
+DELETE FROM nominations
+WHERE course_id = ?;
+
+-- name: DeleteManagerAllocationsByCourseID :exec
+DELETE FROM manager_allocations
+WHERE course_id = ?;
+
+-- name: DeleteCourseAssignmentsByCourseID :exec
+DELETE FROM course_assignments
+WHERE course_id = ?;
 
 -- COURSE ASSIGNMENT
 -- name: CreateCourseAssignment :one

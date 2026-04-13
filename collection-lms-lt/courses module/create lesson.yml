@@ -1,0 +1,30 @@
+info:
+  name: create lesson
+  type: http
+  seq: 16
+
+http:
+  method: POST
+  url: "{{base_url}}/admin/modules/:id/lessons"
+  params:
+    - name: id
+      value: e31de62e-545a-40d7-842d-e78c811179cc
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "title": "Lesson 1",
+        "content_type": "VIDEO",
+        "asset_url": "https://example.com/video.mp4",
+        "rich_text_content": "",
+        "duration_minutes": 25,
+        "sequence_order": 1
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

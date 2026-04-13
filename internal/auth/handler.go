@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"go-server/internal/models"
+	"go-server/internal/utils"
 )
 
 type Handler struct {
@@ -28,7 +29,7 @@ func (h *Handler) HandleMe(w http.ResponseWriter, r *http.Request) {
 	userID, err := GetUserID(r.Context())
 	if err != nil {
 		log.Printf("Context values missing: %v\n", err)
-		models.WriteJSON(w, http.StatusNotFound, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusNotFound, models.JSONResponse{
 			Success: false,
 			Message: "the token data could not extracted from the context, this should never happen if the middleware is working correctly",
 		})
@@ -37,14 +38,14 @@ func (h *Handler) HandleMe(w http.ResponseWriter, r *http.Request) {
 	userRole, err := GetUserRole(r.Context())
 	if err != nil {
 		log.Printf("Context value missing: %v\n", err)
-		models.WriteJSON(w, http.StatusNotFound, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusNotFound, models.JSONResponse{
 			Success: false,
 			Message: "the token data could not extracted from the context, this should never happen if the middleware is working correctly",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: "Returing user data from auth token",
 		Data: struct {
@@ -60,7 +61,7 @@ func (h *Handler) HandleMe(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Message: "invalid request body",
 		})
 		return
@@ -69,7 +70,7 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	// Call the business logic in the service layer
 	tokenString, err := h.svc.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Message: "invalid email or password",
 		})
 		return
@@ -86,7 +87,7 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",                                  // Available to the entire site/routes
 	})
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: "login successful",
 	})

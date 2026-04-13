@@ -1,0 +1,27 @@
+info:
+  name: update module
+  type: http
+  seq: 13
+
+http:
+  method: PATCH
+  url: "{{base_url}}/admin/modules/:id"
+  params:
+    - name: id
+      value: e31de62e-545a-40d7-842d-e78c811179cc
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "title": "Module 1: Updated",
+        "description": "Updated module description",
+        "sequence_order": 2
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

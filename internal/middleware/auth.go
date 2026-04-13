@@ -9,6 +9,7 @@ import (
 
 	"go-server/internal/auth"
 	"go-server/internal/models"
+	"go-server/internal/utils"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -19,7 +20,7 @@ func RequireAuth(next http.Handler) http.Handler {
 		// 1. Grab the cookie
 		cookie, err := r.Cookie("access-token")
 		if err != nil {
-			models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+			utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 				Message: "unauthorized: missing token",
 			})
 			return
@@ -40,7 +41,7 @@ func RequireAuth(next http.Handler) http.Handler {
 		})
 
 		if err != nil || !token.Valid {
-			models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+			utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 				Message: "unauthorized: invalid or expired token",
 			})
 			return
@@ -66,7 +67,7 @@ func RequireRoles(allowedRoles ...string) func(http.Handler) http.Handler {
 			userRole, err := auth.GetUserRole(r.Context())
 			if err != nil || userRole == "" {
 				// this acts as a failsafe in case RequireRoles is accidentally used without RequireAuth
-				models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+				utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 					Message: "unauthorized: role identity missing",
 				})
 				return
@@ -78,7 +79,7 @@ func RequireRoles(allowedRoles ...string) func(http.Handler) http.Handler {
 			}
 
 			// 3. If the loop finishes without a match, block the request
-			models.WriteJSON(w, http.StatusForbidden, models.JSONResponse{
+			utils.WriteJSON(w, http.StatusForbidden, models.JSONResponse{
 				Message: "forbidden: insufficient permissions",
 			})
 		})

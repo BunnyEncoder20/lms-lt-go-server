@@ -1,0 +1,19 @@
+info:
+  name: archive course
+  type: http
+  seq: 9
+
+http:
+  method: PATCH
+  url: "{{base_url}}/admin/courses/:id/archive"
+  params:
+    - name: id
+      value: 367c6c02-69ec-41ae-918b-a3840a55872b
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

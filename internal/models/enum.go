@@ -24,23 +24,6 @@ const (
 	NomAttended                  NominationStatus = "ATTENDED"
 )
 
-// IsValidNominationStatus Helper func in models package
-func IsValidNominationStatus(status NominationStatus) bool {
-	switch status {
-	case NomPendingManagerAssignment,
-		NomPendingEmployeeApproval,
-		NomEnrolled,
-		NomPendingManagerApproval,
-		NomDeclined,
-		NomRejected,
-		NomCompleted,
-		NomAttended:
-		return true
-	default:
-		return false
-	}
-}
-
 // CourseStatus represents the status of a course in the system.
 type CourseStatus string
 

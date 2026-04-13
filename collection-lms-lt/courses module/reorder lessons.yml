@@ -1,0 +1,28 @@
+info:
+  name: reorder lessons
+  type: http
+  seq: 19
+
+http:
+  method: PATCH
+  url: "{{base_url}}/admin/lessons/reorder"
+  body:
+    type: json
+    data: |-
+      {
+        "lessons": [
+          {
+            "id": "44444444-4444-4444-4444-444444444444"
+          },
+          {
+            "id": "55555555-5555-5555-5555-555555555555"
+          }
+        ]
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

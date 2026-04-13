@@ -1,0 +1,31 @@
+info:
+  name: create course
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{base_url}}/admin/courses"
+  body:
+    type: json
+    data: |-
+      {
+        "title": "Modern Go Backend Engineering",
+        "description": "Hands-on backend engineering with Go",
+        "cover_image_url": "https://picsum.photos/900/400",
+        "category": "TECHNICAL",
+        "estimated_duration": 480,
+        "learning_outcomes": [
+          "Build idiomatic Go services",
+          "Design stable APIs",
+          "Apply production debugging patterns"
+        ],
+        "is_strict_sequencing": true
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

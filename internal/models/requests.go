@@ -129,3 +129,67 @@ type NominationFilters struct {
 	StartDate  *string `json:"start_date,omitempty"`
 	EndDate    *string `json:"end_date,omitempty"`
 }
+
+// Course Requests
+
+type CreateCourseRequest struct {
+	Title              string   `json:"title"`
+	Description        *string  `json:"description,omitempty"`
+	CoverImageURL      *string  `json:"cover_image_url,omitempty"`
+	Category           string   `json:"category"`
+	EstimatedDuration  *int64   `json:"estimated_duration,omitempty"`
+	LearningOutcomes   []string `json:"learning_outcomes"`
+	IsStrictSequencing *bool    `json:"is_strict_sequencing,omitempty"`
+}
+
+type UpdateCourseRequestV2 struct {
+	Title              *string  `json:"title,omitempty"`
+	Description        *string  `json:"description,omitempty"`
+	CoverImageURL      *string  `json:"cover_image_url,omitempty"`
+	Category           *string  `json:"category,omitempty"`
+	EstimatedDuration  *int64   `json:"estimated_duration,omitempty"`
+	LearningOutcomes   []string `json:"learning_outcomes,omitempty"`
+	IsStrictSequencing *bool    `json:"is_strict_sequencing,omitempty"`
+}
+
+type CreateCourseModuleRequest struct {
+	Title         string  `json:"title"`
+	Description   *string `json:"description,omitempty"`
+	SequenceOrder *int64  `json:"sequence_order,omitempty"`
+}
+
+type UpdateCourseModuleRequest struct {
+	Title         *string `json:"title,omitempty"`
+	Description   *string `json:"description,omitempty"`
+	SequenceOrder *int64  `json:"sequence_order,omitempty"`
+}
+
+type ReorderItemRequest struct {
+	ID string `json:"id"`
+}
+
+type ReorderCourseModulesRequest struct {
+	Modules []ReorderItemRequest `json:"modules"`
+}
+
+type CreateLessonRequest struct {
+	Title           string  `json:"title"`
+	ContentType     string  `json:"content_type"`
+	AssetURL        *string `json:"asset_url,omitempty"`
+	RichTextContent *string `json:"rich_text_content,omitempty"`
+	DurationMinutes *int64  `json:"duration_minutes,omitempty"`
+	SequenceOrder   *int64  `json:"sequence_order,omitempty"`
+}
+
+type UpdateLessonRequest struct {
+	Title           *string `json:"title,omitempty"`
+	ContentType     *string `json:"content_type,omitempty"`
+	AssetURL        *string `json:"asset_url,omitempty"`
+	RichTextContent *string `json:"rich_text_content,omitempty"`
+	DurationMinutes *int64  `json:"duration_minutes,omitempty"`
+	SequenceOrder   *int64  `json:"sequence_order,omitempty"`
+}
+
+type ReorderLessonsRequest struct {
+	Lessons []ReorderItemRequest `json:"lessons"`
+}

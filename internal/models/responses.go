@@ -1,27 +1,10 @@
 // Package models contains the models for the API endpoints for proper structure of certain types.
 package models
 
-import (
-	"encoding/json"
-	"log"
-	"net/http"
-)
-
 type JSONResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message,omitempty"`
 	Data    any    `json:"data,omitempty"`
-}
-
-// WriteJSON Helper func to write json responses
-func WriteJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	// NewEncoder(http.ResponseWriter).Encode(resp) streams the data (slightly faster for larger responses and also memeory efficient cause it doesn't hold the string in a var)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		log.Printf("error encoding json: %v", err)
-	}
 }
 
 type UserResponse struct {
@@ -181,4 +164,82 @@ type ImportResponse struct {
 	Imported        int64 `json:"imported"`
 	UniqueTrainings int64 `json:"unique_trainings"`
 	MonthCoverage   int64 `json:"month_coverage"`
+}
+
+type CourseAuthorResponse struct {
+	ID        string `json:"id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+}
+
+type CourseCountResponse struct {
+	Modules     int64 `json:"modules"`
+	Assignments int64 `json:"assignments"`
+}
+
+type CourseListResponse struct {
+	ID                 string                `json:"id"`
+	Title              string                `json:"title"`
+	Description        *string               `json:"description,omitempty"`
+	CoverImageURL      *string               `json:"cover_image_url,omitempty"`
+	Status             CourseStatus          `json:"status"`
+	Category           TrainingCategory      `json:"category"`
+	EstimatedDuration  *int64                `json:"estimated_duration,omitempty"`
+	LearningOutcomes   []string              `json:"learning_outcomes"`
+	IsStrictSequencing bool                  `json:"is_strict_sequencing"`
+	Version            int64                 `json:"version"`
+	PublishedAt        *string               `json:"published_at,omitempty"`
+	CreatedAt          string                `json:"created_at"`
+	UpdatedAt          string                `json:"updated_at"`
+	Author             *CourseAuthorResponse `json:"author,omitempty"`
+	Count              CourseCountResponse   `json:"_count"`
+}
+
+type LessonResponse struct {
+	ID              string            `json:"id"`
+	Title           string            `json:"title"`
+	ContentType     LessonContentType `json:"content_type"`
+	AssetURL        *string           `json:"asset_url,omitempty"`
+	RichTextContent *string           `json:"rich_text_content,omitempty"`
+	DurationMinutes *int64            `json:"duration_minutes,omitempty"`
+	SequenceOrder   int64             `json:"sequence_order"`
+}
+
+type CourseModuleResponse struct {
+	ID            string           `json:"id"`
+	Title         string           `json:"title"`
+	Description   *string          `json:"description,omitempty"`
+	SequenceOrder int64            `json:"sequence_order"`
+	Lessons       []LessonResponse `json:"lessons"`
+}
+
+type CourseDetailResponse struct {
+	ID                 string                 `json:"id"`
+	Title              string                 `json:"title"`
+	Description        *string                `json:"description,omitempty"`
+	CoverImageURL      *string                `json:"cover_image_url,omitempty"`
+	Status             CourseStatus           `json:"status"`
+	Category           TrainingCategory       `json:"category"`
+	EstimatedDuration  *int64                 `json:"estimated_duration,omitempty"`
+	LearningOutcomes   []string               `json:"learning_outcomes"`
+	IsStrictSequencing bool                   `json:"is_strict_sequencing"`
+	Version            int64                  `json:"version"`
+	PublishedAt        *string                `json:"published_at,omitempty"`
+	CreatedAt          string                 `json:"created_at"`
+	UpdatedAt          string                 `json:"updated_at"`
+	AuthorID           *string                `json:"author_id,omitempty"`
+	Author             *CourseAuthorResponse  `json:"author,omitempty"`
+	Modules            []CourseModuleResponse `json:"modules"`
+	Count              CourseCountResponse    `json:"_count"`
+}
+
+type CourseDashboardStatsResponse struct {
+	TotalCourses         int64 `json:"total_courses"`
+	Published            int64 `json:"published"`
+	Draft                int64 `json:"draft"`
+	Archived             int64 `json:"archived"`
+	TotalLessons         int64 `json:"total_lessons"`
+	TotalAssignments     int64 `json:"total_assignments"`
+	CompletedAssignments int64 `json:"completed_assignments"`
+	CompletionRate       int64 `json:"completion_rate"`
 }

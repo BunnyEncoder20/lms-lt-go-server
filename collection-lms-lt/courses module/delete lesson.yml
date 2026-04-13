@@ -1,0 +1,19 @@
+info:
+  name: delete lesson
+  type: http
+  seq: 18
+
+http:
+  method: DELETE
+  url: "{{base_url}}/admin/lessons/:id"
+  params:
+    - name: id
+      value: ca592818-4ed1-4570-a27e-c0ff13de1511
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

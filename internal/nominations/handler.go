@@ -9,6 +9,7 @@ import (
 
 	"go-server/internal/auth"
 	"go-server/internal/models"
+	"go-server/internal/utils"
 )
 
 type Handler struct {
@@ -30,7 +31,7 @@ func (h *Handler) HandleNominateEmployees(w http.ResponseWriter, r *http.Request
 	managerID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		h.log.Error("failed to get manager ID from context", "error", err)
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Success: false,
 			Message: "unauthorized",
 		})
@@ -41,7 +42,7 @@ func (h *Handler) HandleNominateEmployees(w http.ResponseWriter, r *http.Request
 	var req models.CreateNominationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.Warn("invalid request body for nominate employees", "error", err)
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "invalid request body",
 		})
@@ -50,7 +51,7 @@ func (h *Handler) HandleNominateEmployees(w http.ResponseWriter, r *http.Request
 
 	// 3. Validate request
 	if req.TrainingID == "" {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "training_id is required",
 		})
@@ -58,7 +59,7 @@ func (h *Handler) HandleNominateEmployees(w http.ResponseWriter, r *http.Request
 	}
 
 	if len(req.UserIDs) == 0 {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "user_ids is required",
 		})
@@ -72,7 +73,7 @@ func (h *Handler) HandleNominateEmployees(w http.ResponseWriter, r *http.Request
 			slog.String("managerID", managerID),
 			slog.Any("error", err),
 		)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: err.Error(),
 		})
@@ -87,7 +88,7 @@ func (h *Handler) HandleNominateEmployees(w http.ResponseWriter, r *http.Request
 	)
 
 	// 6. Return success response
-	models.WriteJSON(w, http.StatusCreated, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusCreated, models.JSONResponse{
 		Success: true,
 		Message: "employees nominated successfully",
 		Data:    nominations,
@@ -101,7 +102,7 @@ func (h *Handler) HandleSelfNomination(w http.ResponseWriter, r *http.Request) {
 	userID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		h.log.Error("failed to get user ID from context", "error", err)
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Success: false,
 			Message: "unauthorized",
 		})
@@ -112,7 +113,7 @@ func (h *Handler) HandleSelfNomination(w http.ResponseWriter, r *http.Request) {
 	var req models.SelfNominationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.Warn("invalid request body for self nomination", "error", err)
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "invalid request body",
 		})
@@ -121,7 +122,7 @@ func (h *Handler) HandleSelfNomination(w http.ResponseWriter, r *http.Request) {
 
 	// 3. Validate request
 	if req.TrainingID == "" {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "training_id is required",
 		})
@@ -135,7 +136,7 @@ func (h *Handler) HandleSelfNomination(w http.ResponseWriter, r *http.Request) {
 			slog.String("userID", userID),
 			slog.Any("error", err),
 		)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: err.Error(),
 		})
@@ -149,7 +150,7 @@ func (h *Handler) HandleSelfNomination(w http.ResponseWriter, r *http.Request) {
 	)
 
 	// 6. Return success response
-	models.WriteJSON(w, http.StatusCreated, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusCreated, models.JSONResponse{
 		Success: true,
 		Message: "self nomination created successfully",
 		Data:    nomination,
@@ -163,7 +164,7 @@ func (h *Handler) HandleRespondToNomination(w http.ResponseWriter, r *http.Reque
 	userID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		h.log.Error("failed to get user ID from context", "error", err)
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Success: false,
 			Message: "unauthorized",
 		})
@@ -173,7 +174,7 @@ func (h *Handler) HandleRespondToNomination(w http.ResponseWriter, r *http.Reque
 	// 2. Get nomination ID from path
 	nominationID := r.PathValue("id")
 	if nominationID == "" {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "missing nomination id",
 		})
@@ -184,7 +185,7 @@ func (h *Handler) HandleRespondToNomination(w http.ResponseWriter, r *http.Reque
 	var req models.NominationResponseRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.Warn("invalid request body for respond to nomination", "error", err)
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "invalid request body",
 		})
@@ -203,7 +204,7 @@ func (h *Handler) HandleRespondToNomination(w http.ResponseWriter, r *http.Reque
 		if err.Error() == "unauthorized: nomination does not belong to this employee" {
 			status = http.StatusForbidden
 		}
-		models.WriteJSON(w, status, models.JSONResponse{
+		utils.WriteJSON(w, status, models.JSONResponse{
 			Success: false,
 			Message: err.Error(),
 		})
@@ -218,7 +219,7 @@ func (h *Handler) HandleRespondToNomination(w http.ResponseWriter, r *http.Reque
 	)
 
 	// 6. Return success response
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: "nomination response recorded",
 		Data:    nomination,
@@ -232,7 +233,7 @@ func (h *Handler) HandleRespondToSelfNomination(w http.ResponseWriter, r *http.R
 	managerID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		h.log.Error("failed to get manager ID from context", "error", err)
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Success: false,
 			Message: "unauthorized",
 		})
@@ -242,7 +243,7 @@ func (h *Handler) HandleRespondToSelfNomination(w http.ResponseWriter, r *http.R
 	// 2. Get nomination ID from path
 	nominationID := r.PathValue("id")
 	if nominationID == "" {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "missing nomination id",
 		})
@@ -255,7 +256,7 @@ func (h *Handler) HandleRespondToSelfNomination(w http.ResponseWriter, r *http.R
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.Warn("invalid request body for respond to self nomination", "error", err)
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "invalid request body",
 		})
@@ -270,7 +271,7 @@ func (h *Handler) HandleRespondToSelfNomination(w http.ResponseWriter, r *http.R
 	case "REJECTED":
 		status = models.NomRejected
 	default:
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "invalid status: must be APPROVED or REJECTED",
 		})
@@ -289,7 +290,7 @@ func (h *Handler) HandleRespondToSelfNomination(w http.ResponseWriter, r *http.R
 		if err.Error() == "unauthorized: can only respond to nominations from your team" {
 			status = http.StatusForbidden
 		}
-		models.WriteJSON(w, status, models.JSONResponse{
+		utils.WriteJSON(w, status, models.JSONResponse{
 			Success: false,
 			Message: err.Error(),
 		})
@@ -304,7 +305,7 @@ func (h *Handler) HandleRespondToSelfNomination(w http.ResponseWriter, r *http.R
 	)
 
 	// 7. Return success response
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: "self nomination " + req.Status + " successfully",
 		Data:    nomination,
@@ -318,7 +319,7 @@ func (h *Handler) HandleGetMyNominations(w http.ResponseWriter, r *http.Request)
 	userID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		h.log.Error("failed to get user ID from context", "error", err)
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Success: false,
 			Message: "unauthorized",
 		})
@@ -332,14 +333,14 @@ func (h *Handler) HandleGetMyNominations(w http.ResponseWriter, r *http.Request)
 			slog.String("userID", userID),
 			slog.Any("error", err),
 		)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to retrieve nominations",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: fmt.Sprintf("retrieved %d nominations", len(nominations)),
 		Data:    nominations,
@@ -353,7 +354,7 @@ func (h *Handler) HandleGetTeamNominations(w http.ResponseWriter, r *http.Reques
 	managerID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		h.log.Error("failed to get manager ID from context", "error", err)
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Success: false,
 			Message: "unauthorized",
 		})
@@ -367,14 +368,14 @@ func (h *Handler) HandleGetTeamNominations(w http.ResponseWriter, r *http.Reques
 			slog.String("managerID", managerID),
 			slog.Any("error", err),
 		)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to retrieve team nominations",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Data:    nominations,
 	})
@@ -403,14 +404,14 @@ func (h *Handler) HandleGetAllNominations(w http.ResponseWriter, r *http.Request
 	nominations, err := h.svc.GetAllNominations(r.Context(), filters)
 	if err != nil {
 		h.log.Error("failed to get all nominations", "error", err)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to retrieve nominations",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Data:    nominations,
 	})
@@ -422,7 +423,7 @@ func (h *Handler) HandleUpdateNominationStatus(w http.ResponseWriter, r *http.Re
 	// 1. Get nomination ID from path
 	nominationID := r.PathValue("id")
 	if nominationID == "" {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "missing nomination id",
 		})
@@ -433,7 +434,7 @@ func (h *Handler) HandleUpdateNominationStatus(w http.ResponseWriter, r *http.Re
 	adminID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		h.log.Error("failed to get admin ID from context", "error", err)
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Success: false,
 			Message: "unauthorized",
 		})
@@ -444,7 +445,7 @@ func (h *Handler) HandleUpdateNominationStatus(w http.ResponseWriter, r *http.Re
 	var req models.UpdateNominationStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.Warn("invalid request body for update nomination status", "error", err)
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "invalid request body",
 		})
@@ -459,7 +460,7 @@ func (h *Handler) HandleUpdateNominationStatus(w http.ResponseWriter, r *http.Re
 			slog.String("nominationID", nominationID),
 			slog.Any("error", err),
 		)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: err.Error(),
 		})
@@ -474,7 +475,7 @@ func (h *Handler) HandleUpdateNominationStatus(w http.ResponseWriter, r *http.Re
 	)
 
 	// 6. Return success response
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: "nomination status updated successfully",
 		Data:    nomination,
@@ -488,7 +489,7 @@ func (h *Handler) HandleGetManagerDashboard(w http.ResponseWriter, r *http.Reque
 	managerID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		h.log.Error("failed to get manager ID from context", "error", err)
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Success: false,
 			Message: "unauthorized",
 		})
@@ -502,14 +503,14 @@ func (h *Handler) HandleGetManagerDashboard(w http.ResponseWriter, r *http.Reque
 			slog.String("managerID", managerID),
 			slog.Any("error", err),
 		)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to retrieve dashboard",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Data:    dashboard,
 	})
@@ -522,7 +523,7 @@ func (h *Handler) HandleGetEmployeeDashboard(w http.ResponseWriter, r *http.Requ
 	userID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		h.log.Error("failed to get user ID from context", "error", err)
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Success: false,
 			Message: "unauthorized",
 		})
@@ -536,14 +537,14 @@ func (h *Handler) HandleGetEmployeeDashboard(w http.ResponseWriter, r *http.Requ
 			slog.String("userID", userID),
 			slog.Any("error", err),
 		)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to retrieve dashboard",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Data:    dashboard,
 	})
@@ -555,14 +556,14 @@ func (h *Handler) HandleGetAllPublishedCourses(w http.ResponseWriter, r *http.Re
 	courses, err := h.svc.GetAllPublishedCourses(r.Context())
 	if err != nil {
 		h.log.Error("failed to get published courses", "error", err)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to retrieve courses",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Data:    courses,
 	})

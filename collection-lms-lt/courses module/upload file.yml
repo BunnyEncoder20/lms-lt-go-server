@@ -1,0 +1,22 @@
+info:
+  name: upload file
+  type: http
+  seq: 20
+
+http:
+  method: POST
+  url: "{{base_url}}/admin/upload"
+  body:
+    type: multipart-form
+    data:
+      - name: file
+        type: file
+        value:
+          - /tmp/sample.pdf
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,19 @@
+info:
+  name: get published course by id
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{base_url}}/courses/published/:id"
+  params:
+    - name: id
+      value: cf551c48-6e2c-4375-b26c-29cd4dfc8d1d
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

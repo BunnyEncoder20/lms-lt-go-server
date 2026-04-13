@@ -1,0 +1,29 @@
+info:
+  name: update lesson
+  type: http
+  seq: 17
+
+http:
+  method: PATCH
+  url: "{{base_url}}/admin/lessons/:id"
+  params:
+    - name: id
+      value: ca592818-4ed1-4570-a27e-c0ff13de1511
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "title": "Lesson 1 Updated",
+        "content_type": "PDF",
+        "asset_url": "https://example.com/lesson.pdf",
+        "duration_minutes": 30,
+        "sequence_order": 2
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

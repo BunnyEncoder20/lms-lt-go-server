@@ -1,0 +1,19 @@
+info:
+  name: delete module
+  type: http
+  seq: 14
+
+http:
+  method: DELETE
+  url: "{{base_url}}/admin/modules/:id"
+  params:
+    - name: id
+      value: f6246b24-0b41-4f5f-8afa-3098b3e85068
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

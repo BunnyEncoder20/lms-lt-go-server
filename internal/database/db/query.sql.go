@@ -14,6 +14,36 @@ import (
 	"go-server/internal/models"
 )
 
+const archiveCourse = `-- name: ArchiveCourse :one
+UPDATE courses SET
+    status = 'ARCHIVED',
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, title, description, author_id, cover_image_url, status, category, estimated_duration, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at
+`
+
+func (q *Queries) ArchiveCourse(ctx context.Context, id uuid.UUID) (Course, error) {
+	row := q.db.QueryRowContext(ctx, archiveCourse, id)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.AuthorID,
+		&i.CoverImageUrl,
+		&i.Status,
+		&i.Category,
+		&i.EstimatedDuration,
+		&i.LearningOutcomes,
+		&i.IsStrictSequencing,
+		&i.Version,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const confirmAttendanceRequest = `-- name: ConfirmAttendanceRequest :one
 UPDATE attendance_requests SET
     status = 'CONFIRMED',
@@ -54,6 +84,43 @@ func (q *Queries) ConfirmAttendanceRequest(ctx context.Context, arg ConfirmAtten
 		&i.LastReminderAt,
 	)
 	return i, err
+}
+
+const countCourseAssignmentsByCourseID = `-- name: CountCourseAssignmentsByCourseID :one
+SELECT COUNT(*) FROM course_assignments
+WHERE course_id = ?
+`
+
+func (q *Queries) CountCourseAssignmentsByCourseID(ctx context.Context, courseID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countCourseAssignmentsByCourseID, courseID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countCourseLessons = `-- name: CountCourseLessons :one
+SELECT COUNT(*) FROM lessons l
+JOIN course_modules cm ON l.module_id = cm.id
+WHERE cm.course_id = ?
+`
+
+func (q *Queries) CountCourseLessons(ctx context.Context, courseID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countCourseLessons, courseID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countCourseModules = `-- name: CountCourseModules :one
+SELECT COUNT(*) FROM course_modules
+WHERE course_id = ?
+`
+
+func (q *Queries) CountCourseModules(ctx context.Context, courseID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countCourseModules, courseID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const countNominationsByStatus = `-- name: CountNominationsByStatus :one
@@ -948,6 +1015,76 @@ func (q *Queries) DeleteAllHistoricalRecords(ctx context.Context) error {
 	return err
 }
 
+const deleteAttendanceDispatchesByCourseID = `-- name: DeleteAttendanceDispatchesByCourseID :exec
+DELETE FROM attendance_dispatches
+WHERE course_id = ?
+`
+
+func (q *Queries) DeleteAttendanceDispatchesByCourseID(ctx context.Context, courseID uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteAttendanceDispatchesByCourseID, courseID)
+	return err
+}
+
+const deleteCourseAssignmentsByCourseID = `-- name: DeleteCourseAssignmentsByCourseID :exec
+DELETE FROM course_assignments
+WHERE course_id = ?
+`
+
+func (q *Queries) DeleteCourseAssignmentsByCourseID(ctx context.Context, courseID uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteCourseAssignmentsByCourseID, courseID)
+	return err
+}
+
+const deleteCourseByID = `-- name: DeleteCourseByID :exec
+DELETE FROM courses
+WHERE id = ?
+`
+
+func (q *Queries) DeleteCourseByID(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteCourseByID, id)
+	return err
+}
+
+const deleteCourseModuleByID = `-- name: DeleteCourseModuleByID :exec
+DELETE FROM course_modules
+WHERE id = ?
+`
+
+func (q *Queries) DeleteCourseModuleByID(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteCourseModuleByID, id)
+	return err
+}
+
+const deleteLessonByID = `-- name: DeleteLessonByID :exec
+DELETE FROM lessons
+WHERE id = ?
+`
+
+func (q *Queries) DeleteLessonByID(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteLessonByID, id)
+	return err
+}
+
+const deleteManagerAllocationsByCourseID = `-- name: DeleteManagerAllocationsByCourseID :exec
+DELETE FROM manager_allocations
+WHERE course_id = ?
+`
+
+func (q *Queries) DeleteManagerAllocationsByCourseID(ctx context.Context, courseID uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteManagerAllocationsByCourseID, courseID)
+	return err
+}
+
+const deleteNominationsByCourseID = `-- name: DeleteNominationsByCourseID :exec
+DELETE FROM nominations
+WHERE course_id = ?
+`
+
+func (q *Queries) DeleteNominationsByCourseID(ctx context.Context, courseID uuid.NullUUID) error {
+	_, err := q.db.ExecContext(ctx, deleteNominationsByCourseID, courseID)
+	return err
+}
+
 const deleteTraining = `-- name: DeleteTraining :exec
 DELETE FROM trainings
 WHERE id = ?
@@ -1217,6 +1354,33 @@ func (q *Queries) GetClusterStats(ctx context.Context) ([]GetClusterStatsRow, er
 	return items, nil
 }
 
+const getCourseByID = `-- name: GetCourseByID :one
+SELECT id, title, description, author_id, cover_image_url, status, category, estimated_duration, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at FROM courses
+WHERE id = ?
+`
+
+func (q *Queries) GetCourseByID(ctx context.Context, id uuid.UUID) (Course, error) {
+	row := q.db.QueryRowContext(ctx, getCourseByID, id)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.AuthorID,
+		&i.CoverImageUrl,
+		&i.Status,
+		&i.Category,
+		&i.EstimatedDuration,
+		&i.LearningOutcomes,
+		&i.IsStrictSequencing,
+		&i.Version,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getCourseByTitle = `-- name: GetCourseByTitle :one
 SELECT id, title, description, author_id, cover_image_url, status, category, estimated_duration, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at FROM courses
 WHERE title = ?
@@ -1238,6 +1402,66 @@ func (q *Queries) GetCourseByTitle(ctx context.Context, title string) (Course, e
 		&i.IsStrictSequencing,
 		&i.Version,
 		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getCourseDashboardStats = `-- name: GetCourseDashboardStats :one
+SELECT
+    COUNT(*) AS total_courses,
+    SUM(CASE WHEN status = 'PUBLISHED' THEN 1 ELSE 0 END) AS published,
+    SUM(CASE WHEN status = 'DRAFT' THEN 1 ELSE 0 END) AS draft,
+    SUM(CASE WHEN status = 'ARCHIVED' THEN 1 ELSE 0 END) AS archived,
+    (SELECT COUNT(*) FROM lessons) AS total_lessons,
+    (SELECT COUNT(*) FROM course_assignments) AS total_assignments,
+    (
+        SELECT COUNT(*) FROM course_assignments
+        WHERE status = 'COMPLETED'
+    ) AS completed_assignments
+FROM courses
+`
+
+type GetCourseDashboardStatsRow struct {
+	TotalCourses         int64           `json:"total_courses"`
+	Published            sql.NullFloat64 `json:"published"`
+	Draft                sql.NullFloat64 `json:"draft"`
+	Archived             sql.NullFloat64 `json:"archived"`
+	TotalLessons         int64           `json:"total_lessons"`
+	TotalAssignments     int64           `json:"total_assignments"`
+	CompletedAssignments int64           `json:"completed_assignments"`
+}
+
+func (q *Queries) GetCourseDashboardStats(ctx context.Context) (GetCourseDashboardStatsRow, error) {
+	row := q.db.QueryRowContext(ctx, getCourseDashboardStats)
+	var i GetCourseDashboardStatsRow
+	err := row.Scan(
+		&i.TotalCourses,
+		&i.Published,
+		&i.Draft,
+		&i.Archived,
+		&i.TotalLessons,
+		&i.TotalAssignments,
+		&i.CompletedAssignments,
+	)
+	return i, err
+}
+
+const getCourseModuleByID = `-- name: GetCourseModuleByID :one
+SELECT id, title, course_id, description, sequence_order, created_at, updated_at FROM course_modules
+WHERE id = ?
+`
+
+func (q *Queries) GetCourseModuleByID(ctx context.Context, id uuid.UUID) (CourseModule, error) {
+	row := q.db.QueryRowContext(ctx, getCourseModuleByID, id)
+	var i CourseModule
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.CourseID,
+		&i.Description,
+		&i.SequenceOrder,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1296,6 +1520,53 @@ func (q *Queries) GetCourseWithAuthor(ctx context.Context, id uuid.UUID) (GetCou
 		&i.AuthorLastName,
 	)
 	return i, err
+}
+
+const getLessonByID = `-- name: GetLessonByID :one
+SELECT id, title, content_type, asset_url, rich_text_content, duration_minutes, sequence_order, module_id, created_at, updated_at FROM lessons
+WHERE id = ?
+`
+
+func (q *Queries) GetLessonByID(ctx context.Context, id uuid.UUID) (Lesson, error) {
+	row := q.db.QueryRowContext(ctx, getLessonByID, id)
+	var i Lesson
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.ContentType,
+		&i.AssetUrl,
+		&i.RichTextContent,
+		&i.DurationMinutes,
+		&i.SequenceOrder,
+		&i.ModuleID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getMaxCourseModuleOrder = `-- name: GetMaxCourseModuleOrder :one
+SELECT COALESCE(MAX(sequence_order), 0) FROM course_modules
+WHERE course_id = ?
+`
+
+func (q *Queries) GetMaxCourseModuleOrder(ctx context.Context, courseID uuid.UUID) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, getMaxCourseModuleOrder, courseID)
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
+}
+
+const getMaxLessonOrder = `-- name: GetMaxLessonOrder :one
+SELECT COALESCE(MAX(sequence_order), 0) FROM lessons
+WHERE module_id = ?
+`
+
+func (q *Queries) GetMaxLessonOrder(ctx context.Context, moduleID uuid.UUID) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, getMaxLessonOrder, moduleID)
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
 }
 
 const getMonthlyStats = `-- name: GetMonthlyStats :many
@@ -1929,6 +2200,124 @@ func (q *Queries) ListCalendarPlans(ctx context.Context) ([]TrainingCalendarPlan
 	return items, nil
 }
 
+const listCourseModulesByCourseID = `-- name: ListCourseModulesByCourseID :many
+SELECT id, title, course_id, description, sequence_order, created_at, updated_at FROM course_modules
+WHERE course_id = ?
+ORDER BY sequence_order ASC
+`
+
+func (q *Queries) ListCourseModulesByCourseID(ctx context.Context, courseID uuid.UUID) ([]CourseModule, error) {
+	rows, err := q.db.QueryContext(ctx, listCourseModulesByCourseID, courseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CourseModule
+	for rows.Next() {
+		var i CourseModule
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.CourseID,
+			&i.Description,
+			&i.SequenceOrder,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCourses = `-- name: ListCourses :many
+SELECT
+    c.id, c.title, c.description, c.author_id, c.cover_image_url, c.status, c.category, c.estimated_duration, c.learning_outcomes, c.is_strict_sequencing, c.version, c.published_at, c.created_at, c.updated_at,
+    u.first_name AS author_first_name,
+    u.last_name AS author_last_name,
+    (
+        SELECT COUNT(*) FROM course_modules cm
+        WHERE cm.course_id = c.id
+    ) AS module_count,
+    (
+        SELECT COUNT(*) FROM course_assignments ca
+        WHERE ca.course_id = c.id
+    ) AS assignment_count
+FROM courses c
+LEFT JOIN users u ON c.author_id = u.id
+ORDER BY c.updated_at DESC
+`
+
+type ListCoursesRow struct {
+	ID                 uuid.UUID               `json:"id"`
+	Title              string                  `json:"title"`
+	Description        sql.NullString          `json:"description"`
+	AuthorID           uuid.NullUUID           `json:"author_id"`
+	CoverImageUrl      sql.NullString          `json:"cover_image_url"`
+	Status             models.CourseStatus     `json:"status"`
+	Category           models.TrainingCategory `json:"category"`
+	EstimatedDuration  sql.NullInt64           `json:"estimated_duration"`
+	LearningOutcomes   string                  `json:"learning_outcomes"`
+	IsStrictSequencing bool                    `json:"is_strict_sequencing"`
+	Version            int64                   `json:"version"`
+	PublishedAt        sql.NullTime            `json:"published_at"`
+	CreatedAt          time.Time               `json:"created_at"`
+	UpdatedAt          time.Time               `json:"updated_at"`
+	AuthorFirstName    sql.NullString          `json:"author_first_name"`
+	AuthorLastName     sql.NullString          `json:"author_last_name"`
+	ModuleCount        int64                   `json:"module_count"`
+	AssignmentCount    int64                   `json:"assignment_count"`
+}
+
+func (q *Queries) ListCourses(ctx context.Context) ([]ListCoursesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listCourses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListCoursesRow
+	for rows.Next() {
+		var i ListCoursesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.AuthorID,
+			&i.CoverImageUrl,
+			&i.Status,
+			&i.Category,
+			&i.EstimatedDuration,
+			&i.LearningOutcomes,
+			&i.IsStrictSequencing,
+			&i.Version,
+			&i.PublishedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AuthorFirstName,
+			&i.AuthorLastName,
+			&i.ModuleCount,
+			&i.AssignmentCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listLessonsByCourse = `-- name: ListLessonsByCourse :many
 SELECT l.id, l.title, l.content_type, l.asset_url, l.rich_text_content, l.duration_minutes, l.sequence_order, l.module_id, l.created_at, l.updated_at FROM lessons l
 JOIN course_modules m ON l.module_id = m.id
@@ -1938,6 +2327,46 @@ ORDER BY m.sequence_order, l.sequence_order
 
 func (q *Queries) ListLessonsByCourse(ctx context.Context, courseID uuid.UUID) ([]Lesson, error) {
 	rows, err := q.db.QueryContext(ctx, listLessonsByCourse, courseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Lesson
+	for rows.Next() {
+		var i Lesson
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.ContentType,
+			&i.AssetUrl,
+			&i.RichTextContent,
+			&i.DurationMinutes,
+			&i.SequenceOrder,
+			&i.ModuleID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLessonsByModuleID = `-- name: ListLessonsByModuleID :many
+SELECT id, title, content_type, asset_url, rich_text_content, duration_minutes, sequence_order, module_id, created_at, updated_at FROM lessons
+WHERE module_id = ?
+ORDER BY sequence_order ASC
+`
+
+func (q *Queries) ListLessonsByModuleID(ctx context.Context, moduleID uuid.UUID) ([]Lesson, error) {
+	rows, err := q.db.QueryContext(ctx, listLessonsByModuleID, moduleID)
 	if err != nil {
 		return nil, err
 	}
@@ -2061,6 +2490,88 @@ func (q *Queries) ListNominationsByFilters(ctx context.Context, arg ListNominati
 			&i.TotalCost,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublishedCourses = `-- name: ListPublishedCourses :many
+SELECT
+    c.id, c.title, c.description, c.author_id, c.cover_image_url, c.status, c.category, c.estimated_duration, c.learning_outcomes, c.is_strict_sequencing, c.version, c.published_at, c.created_at, c.updated_at,
+    u.first_name AS author_first_name,
+    u.last_name AS author_last_name,
+    (
+        SELECT COUNT(*) FROM course_modules cm
+        WHERE cm.course_id = c.id
+    ) AS module_count,
+    (
+        SELECT COUNT(*) FROM course_assignments ca
+        WHERE ca.course_id = c.id
+    ) AS assignment_count
+FROM courses c
+LEFT JOIN users u ON c.author_id = u.id
+WHERE c.status = 'PUBLISHED'
+ORDER BY c.updated_at DESC
+`
+
+type ListPublishedCoursesRow struct {
+	ID                 uuid.UUID               `json:"id"`
+	Title              string                  `json:"title"`
+	Description        sql.NullString          `json:"description"`
+	AuthorID           uuid.NullUUID           `json:"author_id"`
+	CoverImageUrl      sql.NullString          `json:"cover_image_url"`
+	Status             models.CourseStatus     `json:"status"`
+	Category           models.TrainingCategory `json:"category"`
+	EstimatedDuration  sql.NullInt64           `json:"estimated_duration"`
+	LearningOutcomes   string                  `json:"learning_outcomes"`
+	IsStrictSequencing bool                    `json:"is_strict_sequencing"`
+	Version            int64                   `json:"version"`
+	PublishedAt        sql.NullTime            `json:"published_at"`
+	CreatedAt          time.Time               `json:"created_at"`
+	UpdatedAt          time.Time               `json:"updated_at"`
+	AuthorFirstName    sql.NullString          `json:"author_first_name"`
+	AuthorLastName     sql.NullString          `json:"author_last_name"`
+	ModuleCount        int64                   `json:"module_count"`
+	AssignmentCount    int64                   `json:"assignment_count"`
+}
+
+func (q *Queries) ListPublishedCourses(ctx context.Context) ([]ListPublishedCoursesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPublishedCourses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPublishedCoursesRow
+	for rows.Next() {
+		var i ListPublishedCoursesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.AuthorID,
+			&i.CoverImageUrl,
+			&i.Status,
+			&i.Category,
+			&i.EstimatedDuration,
+			&i.LearningOutcomes,
+			&i.IsStrictSequencing,
+			&i.Version,
+			&i.PublishedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AuthorFirstName,
+			&i.AuthorLastName,
+			&i.ModuleCount,
+			&i.AssignmentCount,
 		); err != nil {
 			return nil, err
 		}
@@ -2341,6 +2852,251 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const publishCourse = `-- name: PublishCourse :one
+UPDATE courses SET
+    status = 'PUBLISHED',
+    published_at = CURRENT_TIMESTAMP,
+    version = version + 1,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, title, description, author_id, cover_image_url, status, category, estimated_duration, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at
+`
+
+func (q *Queries) PublishCourse(ctx context.Context, id uuid.UUID) (Course, error) {
+	row := q.db.QueryRowContext(ctx, publishCourse, id)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.AuthorID,
+		&i.CoverImageUrl,
+		&i.Status,
+		&i.Category,
+		&i.EstimatedDuration,
+		&i.LearningOutcomes,
+		&i.IsStrictSequencing,
+		&i.Version,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const reorderCourseModule = `-- name: ReorderCourseModule :exec
+UPDATE course_modules SET
+    sequence_order = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+`
+
+type ReorderCourseModuleParams struct {
+	SequenceOrder int64     `json:"sequence_order"`
+	ID            uuid.UUID `json:"id"`
+}
+
+func (q *Queries) ReorderCourseModule(ctx context.Context, arg ReorderCourseModuleParams) error {
+	_, err := q.db.ExecContext(ctx, reorderCourseModule, arg.SequenceOrder, arg.ID)
+	return err
+}
+
+const reorderLesson = `-- name: ReorderLesson :exec
+UPDATE lessons SET
+    sequence_order = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+`
+
+type ReorderLessonParams struct {
+	SequenceOrder int64     `json:"sequence_order"`
+	ID            uuid.UUID `json:"id"`
+}
+
+func (q *Queries) ReorderLesson(ctx context.Context, arg ReorderLessonParams) error {
+	_, err := q.db.ExecContext(ctx, reorderLesson, arg.SequenceOrder, arg.ID)
+	return err
+}
+
+const restoreCourse = `-- name: RestoreCourse :one
+UPDATE courses SET
+    status = 'DRAFT',
+    published_at = NULL,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, title, description, author_id, cover_image_url, status, category, estimated_duration, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at
+`
+
+func (q *Queries) RestoreCourse(ctx context.Context, id uuid.UUID) (Course, error) {
+	row := q.db.QueryRowContext(ctx, restoreCourse, id)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.AuthorID,
+		&i.CoverImageUrl,
+		&i.Status,
+		&i.Category,
+		&i.EstimatedDuration,
+		&i.LearningOutcomes,
+		&i.IsStrictSequencing,
+		&i.Version,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateCourse = `-- name: UpdateCourse :one
+UPDATE courses SET
+    title = ?,
+    description = ?,
+    cover_image_url = ?,
+    status = ?,
+    category = ?,
+    estimated_duration = ?,
+    learning_outcomes = ?,
+    is_strict_sequencing = ?,
+    published_at = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, title, description, author_id, cover_image_url, status, category, estimated_duration, learning_outcomes, is_strict_sequencing, version, published_at, created_at, updated_at
+`
+
+type UpdateCourseParams struct {
+	Title              string                  `json:"title"`
+	Description        sql.NullString          `json:"description"`
+	CoverImageUrl      sql.NullString          `json:"cover_image_url"`
+	Status             models.CourseStatus     `json:"status"`
+	Category           models.TrainingCategory `json:"category"`
+	EstimatedDuration  sql.NullInt64           `json:"estimated_duration"`
+	LearningOutcomes   string                  `json:"learning_outcomes"`
+	IsStrictSequencing bool                    `json:"is_strict_sequencing"`
+	PublishedAt        sql.NullTime            `json:"published_at"`
+	ID                 uuid.UUID               `json:"id"`
+}
+
+func (q *Queries) UpdateCourse(ctx context.Context, arg UpdateCourseParams) (Course, error) {
+	row := q.db.QueryRowContext(ctx, updateCourse,
+		arg.Title,
+		arg.Description,
+		arg.CoverImageUrl,
+		arg.Status,
+		arg.Category,
+		arg.EstimatedDuration,
+		arg.LearningOutcomes,
+		arg.IsStrictSequencing,
+		arg.PublishedAt,
+		arg.ID,
+	)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.AuthorID,
+		&i.CoverImageUrl,
+		&i.Status,
+		&i.Category,
+		&i.EstimatedDuration,
+		&i.LearningOutcomes,
+		&i.IsStrictSequencing,
+		&i.Version,
+		&i.PublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateCourseModule = `-- name: UpdateCourseModule :one
+UPDATE course_modules SET
+    title = ?,
+    description = ?,
+    sequence_order = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, title, course_id, description, sequence_order, created_at, updated_at
+`
+
+type UpdateCourseModuleParams struct {
+	Title         string         `json:"title"`
+	Description   sql.NullString `json:"description"`
+	SequenceOrder int64          `json:"sequence_order"`
+	ID            uuid.UUID      `json:"id"`
+}
+
+func (q *Queries) UpdateCourseModule(ctx context.Context, arg UpdateCourseModuleParams) (CourseModule, error) {
+	row := q.db.QueryRowContext(ctx, updateCourseModule,
+		arg.Title,
+		arg.Description,
+		arg.SequenceOrder,
+		arg.ID,
+	)
+	var i CourseModule
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.CourseID,
+		&i.Description,
+		&i.SequenceOrder,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateLesson = `-- name: UpdateLesson :one
+UPDATE lessons SET
+    title = ?,
+    content_type = ?,
+    asset_url = ?,
+    rich_text_content = ?,
+    duration_minutes = ?,
+    sequence_order = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, title, content_type, asset_url, rich_text_content, duration_minutes, sequence_order, module_id, created_at, updated_at
+`
+
+type UpdateLessonParams struct {
+	Title           string                   `json:"title"`
+	ContentType     models.LessonContentType `json:"content_type"`
+	AssetUrl        sql.NullString           `json:"asset_url"`
+	RichTextContent sql.NullString           `json:"rich_text_content"`
+	DurationMinutes sql.NullInt64            `json:"duration_minutes"`
+	SequenceOrder   int64                    `json:"sequence_order"`
+	ID              uuid.UUID                `json:"id"`
+}
+
+func (q *Queries) UpdateLesson(ctx context.Context, arg UpdateLessonParams) (Lesson, error) {
+	row := q.db.QueryRowContext(ctx, updateLesson,
+		arg.Title,
+		arg.ContentType,
+		arg.AssetUrl,
+		arg.RichTextContent,
+		arg.DurationMinutes,
+		arg.SequenceOrder,
+		arg.ID,
+	)
+	var i Lesson
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.ContentType,
+		&i.AssetUrl,
+		&i.RichTextContent,
+		&i.DurationMinutes,
+		&i.SequenceOrder,
+		&i.ModuleID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const updateNominationStatus = `-- name: UpdateNominationStatus :one

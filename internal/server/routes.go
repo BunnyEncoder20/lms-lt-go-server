@@ -7,11 +7,13 @@ import (
 
 	"go-server/internal/admin"
 	"go-server/internal/auth"
+	"go-server/internal/courses"
 	"go-server/internal/middleware"
 	"go-server/internal/models"
 	"go-server/internal/nominations"
 	"go-server/internal/trainings"
 	"go-server/internal/users"
+	"go-server/internal/utils"
 )
 
 // Middleware is a custom type that makes our function signature cleaner
@@ -43,6 +45,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 	nominationsService := nominations.NewService(s.db)
 	nominationsHandler := nominations.NewHandler(nominationsService, s.log)
 
+	coursesService := courses.NewService(s.db)
+	coursesHandler := courses.NewHandler(coursesService, s.log)
+
 	adminService := admin.NewService(s.db)
 	adminHandler := admin.NewHandler(adminService, s.log)
 
@@ -65,6 +70,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("GET /", s.HelloWorldHandler)
 	mux.HandleFunc("GET /dbhealth", s.healthHandler)
 	mux.HandleFunc("POST /login", authHandler.HandleLogin)
+	mux.HandleFunc("GET /api/uploads/{filename}", coursesHandler.HandleServeUpload)
 
 	// --- Protected Routes
 	mux.Handle("GET /me", middleware.RequireAuth(http.HandlerFunc(authHandler.HandleMe)))
@@ -96,7 +102,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.Handle("POST /nominations/self", middleware.RequireAuth(http.HandlerFunc(nominationsHandler.HandleSelfNomination)))
 	mux.Handle("POST /nominations/{id}/respond", middleware.RequireAuth(http.HandlerFunc(nominationsHandler.HandleRespondToNomination)))
 	mux.Handle("GET /dashboard/employee", middleware.RequireAuth(http.HandlerFunc(nominationsHandler.HandleGetEmployeeDashboard)))
-	mux.Handle("GET /courses/published", middleware.RequireAuth(http.HandlerFunc(nominationsHandler.HandleGetAllPublishedCourses)))
+	mux.Handle("GET /courses/published", middleware.RequireAuth(http.HandlerFunc(coursesHandler.HandleListPublishedCourses)))
+	mux.Handle("GET /courses/published/{id}", middleware.RequireAuth(http.HandlerFunc(coursesHandler.HandleGetPublishedCourse)))
 	// -- Manager routes
 	mux.Handle("POST /nominations", applyMiddleware(http.HandlerFunc(nominationsHandler.HandleNominateEmployees), managerOrAdminMiddlewares...))
 	mux.Handle("GET /nominations/team", applyMiddleware(http.HandlerFunc(nominationsHandler.HandleGetTeamNominations), managerOrAdminMiddlewares...))
@@ -112,6 +119,26 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.Handle("GET /admin/category-distribution", applyMiddleware(http.HandlerFunc(adminHandler.HandleGetCategoryDistribution), adminOnlyMiddlewares...))
 	mux.Handle("GET /admin/cluster-stats", applyMiddleware(http.HandlerFunc(adminHandler.HandleGetClusterStats), adminOnlyMiddlewares...))
 	mux.Handle("POST /admin/import-history", applyMiddleware(http.HandlerFunc(adminHandler.HandleImportHistory), adminOnlyMiddlewares...))
+
+	// Courses Endpoints
+	mux.Handle("GET /admin/courses/stats", applyMiddleware(http.HandlerFunc(coursesHandler.HandleGetDashboardStats), adminOnlyMiddlewares...))
+	mux.Handle("GET /admin/courses", applyMiddleware(http.HandlerFunc(coursesHandler.HandleListCourses), adminOnlyMiddlewares...))
+	mux.Handle("GET /admin/courses/{id}", applyMiddleware(http.HandlerFunc(coursesHandler.HandleGetCourse), adminOnlyMiddlewares...))
+	mux.Handle("POST /admin/courses", applyMiddleware(http.HandlerFunc(coursesHandler.HandleCreateCourse), adminOnlyMiddlewares...))
+	mux.Handle("PATCH /admin/courses/{id}", applyMiddleware(http.HandlerFunc(coursesHandler.HandleUpdateCourse), adminOnlyMiddlewares...))
+	mux.Handle("PATCH /admin/courses/{id}/publish", applyMiddleware(http.HandlerFunc(coursesHandler.HandlePublishCourse), adminOnlyMiddlewares...))
+	mux.Handle("PATCH /admin/courses/{id}/archive", applyMiddleware(http.HandlerFunc(coursesHandler.HandleArchiveCourse), adminOnlyMiddlewares...))
+	mux.Handle("PATCH /admin/courses/{id}/restore", applyMiddleware(http.HandlerFunc(coursesHandler.HandleRestoreCourse), adminOnlyMiddlewares...))
+	mux.Handle("DELETE /admin/courses/{id}", applyMiddleware(http.HandlerFunc(coursesHandler.HandleDeleteCourse), adminOnlyMiddlewares...))
+	mux.Handle("POST /admin/courses/{courseId}/modules", applyMiddleware(http.HandlerFunc(coursesHandler.HandleCreateModule), adminOnlyMiddlewares...))
+	mux.Handle("PATCH /admin/modules/{id}", applyMiddleware(http.HandlerFunc(coursesHandler.HandleUpdateModule), adminOnlyMiddlewares...))
+	mux.Handle("DELETE /admin/modules/{id}", applyMiddleware(http.HandlerFunc(coursesHandler.HandleDeleteModule), adminOnlyMiddlewares...))
+	mux.Handle("PATCH /admin/modules/reorder", applyMiddleware(http.HandlerFunc(coursesHandler.HandleReorderModules), adminOnlyMiddlewares...))
+	mux.Handle("POST /admin/modules/{moduleId}/lessons", applyMiddleware(http.HandlerFunc(coursesHandler.HandleCreateLesson), adminOnlyMiddlewares...))
+	mux.Handle("PATCH /admin/lessons/{id}", applyMiddleware(http.HandlerFunc(coursesHandler.HandleUpdateLesson), adminOnlyMiddlewares...))
+	mux.Handle("DELETE /admin/lessons/{id}", applyMiddleware(http.HandlerFunc(coursesHandler.HandleDeleteLesson), adminOnlyMiddlewares...))
+	mux.Handle("PATCH /admin/lessons/reorder", applyMiddleware(http.HandlerFunc(coursesHandler.HandleReorderLessons), adminOnlyMiddlewares...))
+	mux.Handle("POST /admin/upload", applyMiddleware(http.HandlerFunc(coursesHandler.HandleUploadFile), adminOnlyMiddlewares...))
 
 	// Global Middlewares - these apply to all routes and are added at the end to wrap everything
 	globalMiddlewares := []Middleware{
@@ -151,21 +178,21 @@ func (s *Server) HelloWorldHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Writing the reponse
-	models.WriteJSON(w, http.StatusOK, resp)
+	utils.WriteJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 	dbHealthMpp := s.db.Health()
 
 	if dbHealthMpp["status"] == "down" {
-		models.WriteJSON(w, http.StatusServiceUnavailable, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusServiceUnavailable, models.JSONResponse{
 			Success: false,
 			Message: dbHealthMpp["Database is unavailable"],
 			Data:    dbHealthMpp,
 		})
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: dbHealthMpp["message"],
 		Data:    dbHealthMpp,

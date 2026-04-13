@@ -1,0 +1,7 @@
+info:
+  name: courses module
+  type: folder
+  seq: 6
+
+request:
+  auth: inherit

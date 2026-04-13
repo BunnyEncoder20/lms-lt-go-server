@@ -1,0 +1,30 @@
+info:
+  name: update course
+  type: http
+  seq: 7
+
+http:
+  method: PATCH
+  url: "{{base_url}}/admin/courses/:id"
+  params:
+    - name: id
+      value: 367c6c02-69ec-41ae-918b-a3840a55872b
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "description": "Updated description",
+        "estimated_duration": 600,
+        "learning_outcomes": [
+          "Refactor legacy services",
+          "Use SQLC effectively"
+        ]
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

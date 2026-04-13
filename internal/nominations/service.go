@@ -11,6 +11,7 @@ import (
 	"go-server/internal/database"
 	"go-server/internal/database/db"
 	"go-server/internal/models"
+	"go-server/internal/utils"
 
 	"github.com/google/uuid"
 )
@@ -378,7 +379,7 @@ func (s *service) UpdateNominationStatus(ctx context.Context, nominationID strin
 		return models.NominationResponse{}, errors.New("invalid nomination ID format")
 	}
 
-	if !models.IsValidNominationStatus(status) {
+	if !utils.IsValidNominationStatus(status) {
 		return models.NominationResponse{}, errors.New("invalid nomination status")
 	}
 

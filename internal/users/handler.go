@@ -10,6 +10,7 @@ import (
 
 	"go-server/internal/auth"
 	"go-server/internal/models"
+	"go-server/internal/utils"
 )
 
 type Handler struct {
@@ -29,7 +30,7 @@ func (h *Handler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	// For standard library http.ServeMux in Go 1.22+, you can use r.PathValue("id")
 	id := r.PathValue("id")
 	if id == "" {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "missing user id",
 		})
@@ -40,14 +41,14 @@ func (h *Handler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.svc.FindOne(r.Context(), id)
 	if err != nil {
 		h.log.Error("user not found", "id", id, "error", err)
-		models.WriteJSON(w, http.StatusNotFound, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusNotFound, models.JSONResponse{
 			Success: false,
 			Message: "user not found",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Data:    user,
 	})
@@ -57,14 +58,14 @@ func (h *Handler) HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.svc.FindAll(r.Context())
 	if err != nil {
 		h.log.Error("failed to list users", "error", err)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to retrieve users",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: fmt.Sprintf("retrieved %d users", len(users)),
 		Data:    users,
@@ -75,7 +76,7 @@ func (h *Handler) HandleGetMyTeam(w http.ResponseWriter, r *http.Request) {
 	managerID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		h.log.Error("failed to get manager ID from context", "error", err)
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Success: false,
 			Message: "unauthorized",
 		})
@@ -85,14 +86,14 @@ func (h *Handler) HandleGetMyTeam(w http.ResponseWriter, r *http.Request) {
 	team, err := h.svc.GetMyTeam(r.Context(), managerID)
 	if err != nil {
 		h.log.Error("could not retreive team members", "managerID", managerID, "error", err)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "could not retrieve team members",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Data:    team,
 	})
@@ -102,7 +103,7 @@ func (h *Handler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 	// Read the body once
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "failed to read request body",
 		})
@@ -116,7 +117,7 @@ func (h *Handler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 		var singleReq models.CreateUserRequest
 		if err := json.Unmarshal(body, &singleReq); err != nil {
 			h.log.Warn("invalid request body for create user", "error", err)
-			models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+			utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 				Success: false,
 				Message: "invalid request body",
 			})
@@ -126,7 +127,7 @@ func (h *Handler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(usersReq) == 0 {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "no users provided",
 		})
@@ -136,7 +137,7 @@ func (h *Handler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 	users, err := h.svc.Create(r.Context(), usersReq)
 	if err != nil {
 		h.log.Error("failed to create user(s)", "error", err)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to create user(s)",
 		})
@@ -148,7 +149,7 @@ func (h *Handler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 		message = fmt.Sprintf("%d users created successfully", len(users))
 	}
 
-	models.WriteJSON(w, http.StatusCreated, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusCreated, models.JSONResponse{
 		Success: true,
 		Message: message,
 		Data:    users,
@@ -159,7 +160,7 @@ func (h *Handler) HandleUpdateUserStatus(w http.ResponseWriter, r *http.Request)
 	id := r.PathValue("id")
 	var req models.UserStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "invalid request body",
 		})
@@ -171,7 +172,7 @@ func (h *Handler) HandleUpdateUserStatus(w http.ResponseWriter, r *http.Request)
 		adminID, _ := auth.GetUserID(r.Context())
 		if adminID == id {
 			h.log.Warn("admin attempted to deactivate their own account via status update", "adminID", adminID)
-			models.WriteJSON(w, http.StatusForbidden, models.JSONResponse{
+			utils.WriteJSON(w, http.StatusForbidden, models.JSONResponse{
 				Success: false,
 				Message: "you cannot deactivate your own admin account",
 			})
@@ -181,14 +182,14 @@ func (h *Handler) HandleUpdateUserStatus(w http.ResponseWriter, r *http.Request)
 
 	if err := h.svc.DeactivateUser(r.Context(), id, req.IsActive); err != nil {
 		h.log.Error("failed to update user status", "id", id, "error", err)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to update user status",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: "user status updated",
 	})
@@ -199,7 +200,7 @@ func (h *Handler) HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	userID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		h.log.Warn("unauthorized profile update attempt", "error", err)
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Success: false,
 			Message: "unauthorized",
 		})
@@ -210,7 +211,7 @@ func (h *Handler) HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	var req models.UpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.Warn("invalid json payload for profile update", "userID", userID, "error", err)
-		models.WriteJSON(w, http.StatusBadGateway, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadGateway, models.JSONResponse{
 			Success: false,
 			Message: "invalid request body",
 		})
@@ -221,7 +222,7 @@ func (h *Handler) HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	updatedProfile, err := h.svc.Update(r.Context(), userID, req)
 	if err != nil {
 		h.log.Error("failed to update user data", "userID", userID, "error", err)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to update user data",
 		})
@@ -229,7 +230,7 @@ func (h *Handler) HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 4. Return Sucess response
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: "profile updated successfully",
 		Data:    updatedProfile,
@@ -242,14 +243,14 @@ func (h *Handler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Even though middleware checked auth, the context extraction could theoretically fail, so we handle that case here
 		h.log.Error("failed to extract admin ID from context", "error", err)
-		models.WriteJSON(w, http.StatusInternalServerError, "internal server error")
+		utils.WriteJSON(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
 	// 2. grab the ID the target user to be deleted from the url path
 	targetUserID := r.PathValue("id")
 	if targetUserID == "" {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Message: "internal server error",
 		})
 		return
@@ -258,7 +259,7 @@ func (h *Handler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	// 3. Ensure admin doesn't delete themselves
 	if adminID == targetUserID {
 		h.log.Warn("admin attempted to delete their own account", "adminID", adminID)
-		models.WriteJSON(w, http.StatusForbidden, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusForbidden, models.JSONResponse{
 			Success: false,
 			Message: "you cannot delete your own admin account",
 		})
@@ -272,7 +273,7 @@ func (h *Handler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 			slog.String("targetUserID", targetUserID),
 			slog.Any("error", err),
 		)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Message: "failed to delete the user",
 		})
 		return
@@ -285,7 +286,7 @@ func (h *Handler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	)
 
 	// 6. Returning success response
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: "user permanently deleted successfully",
 	})
@@ -295,7 +296,7 @@ func (h *Handler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleSoftDeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "missing user id",
 		})
@@ -306,7 +307,7 @@ func (h *Handler) HandleSoftDeleteUser(w http.ResponseWriter, r *http.Request) {
 	adminID, _ := auth.GetUserID(r.Context())
 	if adminID == id {
 		h.log.Warn("admin attempted to soft-delete their own account", "adminID", adminID)
-		models.WriteJSON(w, http.StatusForbidden, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusForbidden, models.JSONResponse{
 			Success: false,
 			Message: "you cannot deactivate your own admin account",
 		})
@@ -315,14 +316,14 @@ func (h *Handler) HandleSoftDeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.svc.DeactivateUser(r.Context(), id, false); err != nil {
 		h.log.Error("failed to soft delete user", "id", id, "error", err)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to deactivate user",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: "user deactivated successfully",
 	})

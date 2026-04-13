@@ -1,0 +1,15 @@
+info:
+  name: list published courses
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{base_url}}/courses/published"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

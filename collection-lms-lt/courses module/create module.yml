@@ -1,0 +1,27 @@
+info:
+  name: create module
+  type: http
+  seq: 12
+
+http:
+  method: POST
+  url: "{{base_url}}/admin/courses/:id/modules"
+  params:
+    - name: id
+      value: 367c6c02-69ec-41ae-918b-a3840a55872b
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "title": "Module 2: Temp",
+        "description": "This gonna be deleted",
+        "sequence_order": 1
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

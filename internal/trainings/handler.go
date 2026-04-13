@@ -9,6 +9,7 @@ import (
 
 	"go-server/internal/auth"
 	"go-server/internal/models"
+	"go-server/internal/utils"
 )
 
 type Handler struct {
@@ -29,14 +30,14 @@ func (h *Handler) HandleListTraining(w http.ResponseWriter, r *http.Request) {
 	trainings, err := h.svc.List(r.Context())
 	if err != nil {
 		h.log.Error("failed to list trainings", "error", err)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to retrieve trainings",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Data:    trainings,
 	})
@@ -47,7 +48,7 @@ func (h *Handler) HandleListTraining(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleGetTraining(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "missing training id",
 		})
@@ -58,14 +59,14 @@ func (h *Handler) HandleGetTraining(w http.ResponseWriter, r *http.Request) {
 	training, err := h.svc.Get(r.Context(), id)
 	if err != nil {
 		h.log.Error("training not found", "id", id, "error", err)
-		models.WriteJSON(w, http.StatusNotFound, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusNotFound, models.JSONResponse{
 			Success: false,
 			Message: "training not found",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: fmt.Sprintf("training retrieved successfully for id '%s'", id),
 		Data:    training,
@@ -82,7 +83,7 @@ func (h *Handler) HandleGetTrainingCategory(w http.ResponseWriter, r *http.Reque
 	}
 
 	if category == "" {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "missing category parameter",
 		})
@@ -93,14 +94,14 @@ func (h *Handler) HandleGetTrainingCategory(w http.ResponseWriter, r *http.Reque
 	trainings, err := h.svc.GetByCategory(r.Context(), category)
 	if err != nil {
 		h.log.Error("failed to get trainings by category", "category", category, "error", err)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to retrieve trainings",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: fmt.Sprintf("trainings retrieved successfully for category '%s', count: %d", category, len(trainings)),
 		Data:    trainings,
@@ -113,14 +114,14 @@ func (h *Handler) HandleGetUpcomingTraining(w http.ResponseWriter, r *http.Reque
 	trainings, err := h.svc.GetUpcoming(r.Context())
 	if err != nil {
 		h.log.Error("failed to get upcoming trainings", "error", err)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to retrieve upcoming trainings",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: fmt.Sprintf("upcoming trainings retrieved successfully, count: %d", len(trainings)),
 		Data:    trainings,
@@ -133,7 +134,7 @@ func (h *Handler) HandleGetEmployeeTraining(w http.ResponseWriter, r *http.Reque
 	userID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		h.log.Error("failed to get user ID from context", "error", err)
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Success: false,
 			Message: "unauthorized",
 		})
@@ -143,14 +144,14 @@ func (h *Handler) HandleGetEmployeeTraining(w http.ResponseWriter, r *http.Reque
 	trainings, err := h.svc.GetEmployeeTrainings(r.Context(), userID)
 	if err != nil {
 		h.log.Error("failed to get employee trainings", "userID", userID, "error", err)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to retrieve employee trainings",
 		})
 		return
 	}
 
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: fmt.Sprintf("trainings retrieved successfully for employee '%s', count: %d", userID, len(trainings)),
 		Data:    trainings,
@@ -164,7 +165,7 @@ func (h *Handler) HandleCreateTraining(w http.ResponseWriter, r *http.Request) {
 	adminID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		h.log.Error("failed to get admin ID from context", "error", err)
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Success: false,
 			Message: "unauthorized",
 		})
@@ -175,7 +176,7 @@ func (h *Handler) HandleCreateTraining(w http.ResponseWriter, r *http.Request) {
 	var req models.CreateTrainingRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.Warn("invalid request body for create training", "error", err)
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "invalid request body",
 		})
@@ -186,7 +187,7 @@ func (h *Handler) HandleCreateTraining(w http.ResponseWriter, r *http.Request) {
 	training, err := h.svc.Create(r.Context(), adminID, req)
 	if err != nil {
 		h.log.Error("failed to create training", "adminID", adminID, "error", err)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to create training",
 		})
@@ -201,7 +202,7 @@ func (h *Handler) HandleCreateTraining(w http.ResponseWriter, r *http.Request) {
 	)
 
 	// 5. Return success response
-	models.WriteJSON(w, http.StatusCreated, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusCreated, models.JSONResponse{
 		Success: true,
 		Message: "training created successfully",
 		Data:    training,
@@ -215,7 +216,7 @@ func (h *Handler) HandleUpdateTraining(w http.ResponseWriter, r *http.Request) {
 	adminID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		h.log.Error("failed to get admin ID from context", "error", err)
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Success: false,
 			Message: "unauthorized",
 		})
@@ -225,7 +226,7 @@ func (h *Handler) HandleUpdateTraining(w http.ResponseWriter, r *http.Request) {
 	// 2. Get training ID from path
 	trainingID := r.PathValue("id")
 	if trainingID == "" {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "missing training id",
 		})
@@ -236,7 +237,7 @@ func (h *Handler) HandleUpdateTraining(w http.ResponseWriter, r *http.Request) {
 	var req models.UpdateTrainingRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.Warn("invalid request body for update training", "error", err)
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "invalid request body",
 		})
@@ -251,7 +252,7 @@ func (h *Handler) HandleUpdateTraining(w http.ResponseWriter, r *http.Request) {
 			slog.String("trainingID", trainingID),
 			slog.Any("error", err),
 		)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to update training",
 		})
@@ -265,7 +266,7 @@ func (h *Handler) HandleUpdateTraining(w http.ResponseWriter, r *http.Request) {
 	)
 
 	// 6. Return success response
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: "training updated successfully",
 		Data:    training,
@@ -279,7 +280,7 @@ func (h *Handler) HandleDeleteTraining(w http.ResponseWriter, r *http.Request) {
 	adminID, err := auth.GetUserID(r.Context())
 	if err != nil {
 		h.log.Error("failed to get admin ID from context", "error", err)
-		models.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Success: false,
 			Message: "unauthorized",
 		})
@@ -289,7 +290,7 @@ func (h *Handler) HandleDeleteTraining(w http.ResponseWriter, r *http.Request) {
 	// 2. Get training ID from path
 	trainingID := r.PathValue("id")
 	if trainingID == "" {
-		models.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
 			Success: false,
 			Message: "missing training id",
 		})
@@ -303,7 +304,7 @@ func (h *Handler) HandleDeleteTraining(w http.ResponseWriter, r *http.Request) {
 			slog.String("trainingID", trainingID),
 			slog.Any("error", err),
 		)
-		models.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
 			Success: false,
 			Message: "failed to delete training",
 		})
@@ -317,7 +318,7 @@ func (h *Handler) HandleDeleteTraining(w http.ResponseWriter, r *http.Request) {
 	)
 
 	// 5. Return success response
-	models.WriteJSON(w, http.StatusOK, models.JSONResponse{
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: "training deleted successfully",
 	})
