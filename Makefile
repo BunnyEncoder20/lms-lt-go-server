@@ -35,6 +35,16 @@ docker-down:
 	@echo "Stopping and removing all Docker containers..."
 	@docker compose down -v
 
+# down and then up the containers for latest changes
+docker-restart:
+	@echo "Stopping and removing all Docker containers..."
+	@docker compose down -v
+	@echo "Building the binary for the docker env..."
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o main ./cmd/api/main.go
+	@echo "Starting the offline Docker Compose setup..."
+	@touch local_lms.db  # incase the db file is not made already, does nothing if already exists
+	@docker compose up --build -d
+
 # Live Reload
 watch:
 	@if command -v air > /dev/null; then \
