@@ -29,7 +29,7 @@ USER containeruser
 # wget -qO- silently downloads the page and outputs to stdout. 
 # If it gets a 500/503 from your Go app (because DB is down), wget exits with an error code (1), failing the healthcheck.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget -qO- http://localhost:8080/healthcheck || exit 1
+  CMD wget -qO- http://localhost:8080/dbhealth || exit 1
 
 # Command to run
 CMD ["./main"]
