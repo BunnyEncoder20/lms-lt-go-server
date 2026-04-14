@@ -10,8 +10,8 @@ http:
     type: json
     data: |-
       {
-          "Email": "admin@skillsync.com",
-          "Password": "Admin123"
+          "pes_number": "PES-001",
+          "password": "Admin123"
       }
   auth: inherit
 

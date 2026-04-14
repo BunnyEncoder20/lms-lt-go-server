@@ -5,8 +5,8 @@ import (
 )
 
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	PesNumber string `json:"pes_number"`
+	Password  string `json:"password"`
 }
 
 // User Requests

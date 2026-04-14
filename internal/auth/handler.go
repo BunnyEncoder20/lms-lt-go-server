@@ -68,7 +68,7 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Call the business logic in the service layer
-	tokenString, err := h.svc.Login(r.Context(), req.Email, req.Password)
+	tokenString, err := h.svc.Login(r.Context(), req.PesNumber, req.Password)
 	if err != nil {
 		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Message: "invalid email or password",
@@ -87,6 +87,7 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",                                  // Available to the entire site/routes
 	})
 
+	h.log.Info("Login successful", "pesNumber:", req.PesNumber)
 	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: "login successful",
