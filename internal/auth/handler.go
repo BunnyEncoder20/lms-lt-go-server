@@ -60,7 +60,7 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   isProd,
 		SameSite: http.SameSiteStrictMode,
-		Path:     "/auth/refresh",
+		Path:     "/auth",
 	})
 
 	h.log.Info("Login successful", "pesNumber:", req.PesNumber)
@@ -107,13 +107,34 @@ func (h *Handler) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   os.Getenv("APP_ENV") == "production",
 		SameSite: http.SameSiteStrictMode,
-		Path:     "/auth/refresh",
+		Path:     "/auth",
 	})
 
-	h.log.Info("Token refresh successful")
 	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: "token refreshed successfully",
+	})
+}
+
+func (h *Handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("refresh-token")
+	if err != nil {
+		h.log.Warn("refresh-token not found")
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+			Success: false,
+			Message: "refresh token not found",
+		})
+		return
+	}
+
+	_ = h.svc.Logout(r.Context(), cookie.Value)
+
+	// clear cookies always (even if DB fails)
+	clearAuthCookies(w)
+
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
+		Success: true,
+		Message: "logged out successfully",
 	})
 }
 
@@ -130,6 +151,6 @@ func clearAuthCookies(w http.ResponseWriter) {
 		Value:    "",
 		MaxAge:   -1,
 		HttpOnly: true,
-		Path:     "/auth/refresh",
+		Path:     "/auth",
 	})
 }

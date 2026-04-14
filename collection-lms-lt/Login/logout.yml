@@ -1,11 +1,14 @@
 info:
-  name: get cluster stats
+  name: logout
   type: http
   seq: 6
 
 http:
-  method: GET
-  url: "{{base_url}}/admin/clusterstats"
+  method: POST
+  url: "{{base_url}}/auth/logout"
+  body:
+    type: json
+    data: ""
   auth: inherit
 
 settings:

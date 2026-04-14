@@ -32,6 +32,7 @@ type TokenPair struct {
 type Service interface {
 	Login(ctx context.Context, pesNumber, password string) (*TokenPair, error)
 	RefreshToken(ctx context.Context, refreshToken string) (*TokenPair, error)
+	Logout(ctx context.Context, refreshToken string) error
 }
 
 type service struct {
@@ -155,4 +156,16 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken string) (*Token
 		AccessToken:  newAccessToken,
 		RefreshToken: newPlainRefresh,
 	}, nil
+}
+
+func (s *service) Logout(ctx context.Context, refreshToken string) error {
+	hash := sha256.Sum256([]byte(refreshToken))
+	hashedToken := hex.EncodeToString(hash[:])
+
+	user, err := s.db.Read().GetUserByRefreshTokenHash(ctx, sql.NullString{String: hashedToken, Valid: true})
+	if err != nil {
+		return nil // already invalid -> OK
+	}
+
+	return s.db.Write().RevokeRefreshToken(ctx, user.ID)
 }

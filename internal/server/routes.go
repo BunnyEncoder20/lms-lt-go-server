@@ -78,6 +78,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("GET /", s.HelloWorldHandler)
 	mux.HandleFunc("GET /dbhealth", s.healthHandler)
 	mux.HandleFunc("POST /auth/login", authHandler.HandleLogin)
+	mux.Handle("POST /auth/logout", middleware.RequireAuth(http.HandlerFunc(authHandler.HandleLogout)))
 	mux.HandleFunc("POST /auth/refresh", authHandler.HandleRefresh)
 	mux.HandleFunc("GET /uploads/{filename}", coursesHandler.HandleServeUpload)
 	mux.Handle("GET /socket.io/", notifications.AsHTTPHandler(notificationsService))
