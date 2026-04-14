@@ -47,7 +47,11 @@ CREATE TABLE IF NOT EXISTS users (
     skip_manager_id TEXT REFERENCES users (id) ON DELETE SET NULL,
     is_id TEXT REFERENCES users (id) ON DELETE SET NULL,
     ns_id TEXT REFERENCES users (id) ON DELETE SET NULL,
-    dh_id TEXT REFERENCES users (id) ON DELETE SET NULL
+    dh_id TEXT REFERENCES users (id) ON DELETE SET NULL,
+
+    -- Refresh Token (Kill Switch)
+    refresh_token_hash TEXT,
+    refresh_token_expires_at DATETIME
 );
 
 -- Triggers to emulate Prisma's @updateAt behavior

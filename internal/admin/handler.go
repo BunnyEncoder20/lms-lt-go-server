@@ -22,6 +22,49 @@ func NewHandler(svc Service, logger *slog.Logger) *Handler {
 	}
 }
 
+func (h *Handler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		utils.WriteJSON(w, http.StatusBadRequest, models.JSONResponse{
+			Success: false,
+			Message: "missing user id",
+		})
+		return
+	}
+
+	user, err := h.svc.GetUser(r.Context(), id)
+	if err != nil {
+		h.log.Error("admin user lookup failed", "id", id, "error", err)
+		utils.WriteJSON(w, http.StatusNotFound, models.JSONResponse{
+			Success: false,
+			Message: "user not found",
+		})
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
+		Success: true,
+		Data:    user,
+	})
+}
+
+func (h *Handler) HandleGetUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := h.svc.GetUsers(r.Context())
+	if err != nil {
+		h.log.Error("failed to list users", "error", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, models.JSONResponse{
+			Success: false,
+			Message: "failed to retrieve users",
+		})
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
+		Success: true,
+		Data:    users,
+	})
+}
+
 func (h *Handler) HandleGetKpis(w http.ResponseWriter, r *http.Request) {
 	data, err := h.svc.GetKpis(r.Context())
 	if err != nil {

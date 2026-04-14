@@ -1,14 +1,14 @@
 info:
-  name: soft delete user
+  name: get users by id
   type: http
   seq: 7
 
 http:
-  method: DELETE
+  method: GET
   url: "{{base_url}}/admin/users/:id"
   params:
     - name: id
-      value: fd3b9b73-f9bf-4acf-9e69-3beab201265f
+      value: e0959662-e6d1-4c0d-9676-59c119e47fda
       type: path
   auth: inherit
 

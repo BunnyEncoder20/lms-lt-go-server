@@ -41,8 +41,12 @@ func RequireAuth(next http.Handler) http.Handler {
 		})
 
 		if err != nil || !token.Valid {
+			msg := "unauthorized: invalid token"
+			if errors.Is(err, jwt.ErrTokenExpired) {
+				msg = "unauthorized: token expired"
+			}
 			utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
-				Message: "unauthorized: invalid or expired token",
+				Message: msg,
 			})
 			return
 		}

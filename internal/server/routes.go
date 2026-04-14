@@ -78,18 +78,19 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux.HandleFunc("GET /", s.HelloWorldHandler)
 	mux.HandleFunc("GET /dbhealth", s.healthHandler)
 	mux.HandleFunc("POST /auth/login", authHandler.HandleLogin)
-	mux.HandleFunc("GET /api/uploads/{filename}", coursesHandler.HandleServeUpload)
+	mux.HandleFunc("POST /auth/refresh", authHandler.HandleRefresh)
+	mux.HandleFunc("GET /uploads/{filename}", coursesHandler.HandleServeUpload)
 	mux.Handle("GET /socket.io/", notifications.AsHTTPHandler(notificationsService))
 	mux.Handle("POST /socket.io/", notifications.AsHTTPHandler(notificationsService))
 
 	// --- Protected Routes
-	mux.Handle("GET /me", middleware.RequireAuth(http.HandlerFunc(authHandler.HandleMe)))
+	mux.Handle("GET /users/me", middleware.RequireAuth(http.HandlerFunc(usersHandler.HandleGetMe)))
 	mux.Handle("GET /notifications/feed", applyMiddleware(http.HandlerFunc(notificationsHandler.HandleGetHrFeed), adminOnlyMiddlewares...))
 
 	// User Management
 	mux.Handle("GET /my-team", applyMiddleware(http.HandlerFunc(usersHandler.HandleGetMyTeam), managerOrAdminMiddlewares...))
-	mux.Handle("GET /admin/users", applyMiddleware(http.HandlerFunc(usersHandler.HandleListUsers), adminOnlyMiddlewares...))
-	mux.Handle("GET /admin/users/{id}", applyMiddleware(http.HandlerFunc(usersHandler.HandleGetUser), adminOnlyMiddlewares...))
+	mux.Handle("GET /admin/users", applyMiddleware(http.HandlerFunc(adminHandler.HandleGetUsers), adminOnlyMiddlewares...))
+	mux.Handle("GET /admin/users/{id}", applyMiddleware(http.HandlerFunc(adminHandler.HandleGetUser), adminOnlyMiddlewares...))
 	mux.Handle("POST /admin/users", applyMiddleware(http.HandlerFunc(usersHandler.HandleCreateUser), adminOnlyMiddlewares...))
 	mux.Handle("PATCH /admin/users/{id}/status", applyMiddleware(http.HandlerFunc(usersHandler.HandleUpdateUserStatus), adminOnlyMiddlewares...))
 	mux.Handle("DELETE /admin/users/{id}", applyMiddleware(http.HandlerFunc(usersHandler.HandleSoftDeleteUser), adminOnlyMiddlewares...))

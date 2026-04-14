@@ -2,7 +2,6 @@ package auth
 
 import (
 	"encoding/json"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,7 +12,7 @@ import (
 )
 
 type Handler struct {
-	svc Service // references the Service interface from the service.go file of this module
+	svc Service
 	log *slog.Logger
 }
 
@@ -22,40 +21,6 @@ func NewHandler(svc Service, logger *slog.Logger) *Handler {
 		svc: svc,
 		log: logger,
 	}
-}
-
-func (h *Handler) HandleMe(w http.ResponseWriter, r *http.Request) {
-	// checking if the values are actually in the context
-	userID, err := GetUserID(r.Context())
-	if err != nil {
-		log.Printf("Context values missing: %v\n", err)
-		utils.WriteJSON(w, http.StatusNotFound, models.JSONResponse{
-			Success: false,
-			Message: "the token data could not extracted from the context, this should never happen if the middleware is working correctly",
-		})
-		return
-	}
-	userRole, err := GetUserRole(r.Context())
-	if err != nil {
-		log.Printf("Context value missing: %v\n", err)
-		utils.WriteJSON(w, http.StatusNotFound, models.JSONResponse{
-			Success: false,
-			Message: "the token data could not extracted from the context, this should never happen if the middleware is working correctly",
-		})
-		return
-	}
-
-	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
-		Success: true,
-		Message: "Returing user data from auth token",
-		Data: struct {
-			UserID   any `json:"userId"`
-			UserRole any `json:"userRole"`
-		}{
-			UserID:   userID,
-			UserRole: userRole,
-		}, // This is just an example, you would typically query the database for the user's info using the ID from the claims
-	})
 }
 
 func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
@@ -67,29 +32,104 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Call the business logic in the service layer
-	tokenString, err := h.svc.Login(r.Context(), req.PesNumber, req.Password)
+	tokenPair, err := h.svc.Login(r.Context(), req.PesNumber, req.Password)
 	if err != nil {
+		h.log.Debug("invalid pesNumber or password", "err", err)
 		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
 			Message: "invalid email or password",
 		})
 		return
 	}
 
-	// Making and Setting a encrypted httpOnly cookie with the token
+	isProd := os.Getenv("APP_ENV") == "production"
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access-token",
-		Value:    tokenString,
-		Expires:  time.Now().Add(24 * time.Hour),
-		HttpOnly: true,                                 // Prevents JavaScript access to the cookie
-		Secure:   os.Getenv("APP_ENV") == "production", // Only sent over HTTPS
-		SameSite: http.SameSiteStrictMode,              // Prevents CSRF attacks
-		Path:     "/",                                  // Available to the entire site/routes
+		Value:    tokenPair.AccessToken,
+		Expires:  time.Now().Add(accessTokenExpiry),
+		HttpOnly: true,
+		Secure:   isProd,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/",
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh-token",
+		Value:    tokenPair.RefreshToken,
+		Expires:  time.Now().Add(refreshTokenExpiry),
+		HttpOnly: true,
+		Secure:   isProd,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/auth/refresh",
 	})
 
 	h.log.Info("Login successful", "pesNumber:", req.PesNumber)
 	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
 		Success: true,
 		Message: "login successful",
+	})
+}
+
+func (h *Handler) HandleRefresh(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("refresh-token")
+	if err != nil {
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+			Success: false,
+			Message: "unauthorized: missing refresh token",
+		})
+		return
+	}
+
+	tokenPair, err := h.svc.RefreshToken(r.Context(), cookie.Value)
+	if err != nil {
+		clearAuthCookies(w)
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access-token",
+		Value:    tokenPair.AccessToken,
+		Expires:  time.Now().Add(accessTokenExpiry),
+		HttpOnly: true,
+		Secure:   os.Getenv("APP_ENV") == "production",
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/",
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh-token",
+		Value:    tokenPair.RefreshToken,
+		Expires:  time.Now().Add(refreshTokenExpiry),
+		HttpOnly: true,
+		Secure:   os.Getenv("APP_ENV") == "production",
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/auth/refresh",
+	})
+
+	h.log.Info("Token refresh successful")
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
+		Success: true,
+		Message: "token refreshed successfully",
+	})
+}
+
+func clearAuthCookies(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access-token",
+		Value:    "",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Path:     "/",
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh-token",
+		Value:    "",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Path:     "/auth/refresh",
 	})
 }

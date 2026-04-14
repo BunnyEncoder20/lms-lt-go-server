@@ -41,6 +41,61 @@ type UserResponse struct {
 	DhID             *string `json:"dh_id,omitempty"`
 }
 
+type UserProfileResponse struct {
+	ID           string  `json:"id"`
+	PesNumber    string  `json:"pes_number"`
+	FirstName    string  `json:"first_name"`
+	LastName     string  `json:"last_name"`
+	FullName     *string `json:"full_name,omitempty"`
+	Email        string  `json:"email"`
+	Role         Role    `json:"role"`
+	Cluster      *string `json:"cluster,omitempty"`
+	Title        *string `json:"title,omitempty"`
+	Gender       *string `json:"gender,omitempty"`
+	Band         *string `json:"band,omitempty"`
+	Grade        *string `json:"grade,omitempty"`
+	Department   *string `json:"department,omitempty"`
+	BaseLocation *string `json:"base_location,omitempty"`
+	ManagerID    *string `json:"manager_id,omitempty"`
+}
+
+type AdminUserDetailResponse struct {
+	ID               string  `json:"id"`
+	PesNumber        string  `json:"pes_number"`
+	FirstName        string  `json:"first_name"`
+	LastName         string  `json:"last_name"`
+	FullName         *string `json:"full_name,omitempty"`
+	Email            string  `json:"email"`
+	Role             Role    `json:"role"`
+	Cluster          *string `json:"cluster,omitempty"`
+	Location         *string `json:"location,omitempty"`
+	Title            *string `json:"title,omitempty"`
+	Gender           *string `json:"gender,omitempty"`
+	Band             *string `json:"band,omitempty"`
+	Grade            *string `json:"grade,omitempty"`
+	EmploymentStatus *string `json:"employment_status,omitempty"`
+	IsPsn            *string `json:"is_psn,omitempty"`
+	IsName           *string `json:"is_name,omitempty"`
+	NsPsn            *string `json:"ns_psn,omitempty"`
+	NsName           *string `json:"ns_name,omitempty"`
+	DhPsn            *string `json:"dh_psn,omitempty"`
+	DhName           *string `json:"dh_name,omitempty"`
+	Ic               *string `json:"ic,omitempty"`
+	Sbg              *string `json:"sbg,omitempty"`
+	Bu               *string `json:"bu,omitempty"`
+	Segment          *string `json:"segment,omitempty"`
+	Department       *string `json:"department,omitempty"`
+	BaseLocation     *string `json:"base_location,omitempty"`
+	IsActive         bool    `json:"is_active"`
+	CreatedAt        string  `json:"created_at"`
+	UpdatedAt        string  `json:"updated_at"`
+	ManagerID        *string `json:"manager_id,omitempty"`
+	SkipManagerID    *string `json:"skip_manager_id,omitempty"`
+	IsID             *string `json:"is_id,omitempty"`
+	NsID             *string `json:"ns_id,omitempty"`
+	DhID             *string `json:"dh_id,omitempty"`
+}
+
 type TrainingResponse struct {
 	ID                   string           `json:"id"`
 	Title                string           `json:"title"`

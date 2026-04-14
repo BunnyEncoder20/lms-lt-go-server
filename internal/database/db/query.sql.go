@@ -955,7 +955,7 @@ INSERT INTO users (
     NULLIF(?29, '00000000-0000-0000-0000-000000000000'), 
     ?30, ?31, ?32
 )
-RETURNING id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
+RETURNING id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id, refresh_token_hash, refresh_token_expires_at
 `
 
 type CreateUserParams struct {
@@ -1066,6 +1066,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,
+		&i.RefreshTokenHash,
+		&i.RefreshTokenExpiresAt,
 	)
 	return i, err
 }
@@ -1921,7 +1923,7 @@ func (q *Queries) GetNominationsByUserID(ctx context.Context, userID uuid.UUID) 
 }
 
 const getTeamMembers = `-- name: GetTeamMembers :many
-SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
+SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id, refresh_token_hash, refresh_token_expires_at
 FROM users
 WHERE is_id = ?
 `
@@ -1971,6 +1973,8 @@ func (q *Queries) GetTeamMembers(ctx context.Context, isID uuid.NullUUID) ([]Use
 			&i.IsID,
 			&i.NsID,
 			&i.DhID,
+			&i.RefreshTokenHash,
+			&i.RefreshTokenExpiresAt,
 		); err != nil {
 			return nil, err
 		}
@@ -2088,7 +2092,7 @@ func (q *Queries) GetTrainingByTitle(ctx context.Context, title string) (Trainin
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
+SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id, refresh_token_hash, refresh_token_expires_at
 FROM users
 WHERE email = ?
 `
@@ -2132,12 +2136,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,
+		&i.RefreshTokenHash,
+		&i.RefreshTokenExpiresAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
+SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id, refresh_token_hash, refresh_token_expires_at
 FROM users
 WHERE id = ?
 `
@@ -2181,12 +2187,14 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,
+		&i.RefreshTokenHash,
+		&i.RefreshTokenExpiresAt,
 	)
 	return i, err
 }
 
 const getUserByPesNumber = `-- name: GetUserByPesNumber :one
-SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
+SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id, refresh_token_hash, refresh_token_expires_at
 FROM users
 WHERE pes_number = ?
 `
@@ -2230,6 +2238,58 @@ func (q *Queries) GetUserByPesNumber(ctx context.Context, pesNumber string) (Use
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,
+		&i.RefreshTokenHash,
+		&i.RefreshTokenExpiresAt,
+	)
+	return i, err
+}
+
+const getUserByRefreshTokenHash = `-- name: GetUserByRefreshTokenHash :one
+SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id, refresh_token_hash, refresh_token_expires_at FROM users
+WHERE refresh_token_hash = ?
+`
+
+func (q *Queries) GetUserByRefreshTokenHash(ctx context.Context, refreshTokenHash sql.NullString) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByRefreshTokenHash, refreshTokenHash)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.PesNumber,
+		&i.Password,
+		&i.FirstName,
+		&i.LastName,
+		&i.FullName,
+		&i.Email,
+		&i.Role,
+		&i.Cluster,
+		&i.Location,
+		&i.Title,
+		&i.Gender,
+		&i.Band,
+		&i.Grade,
+		&i.EmploymentStatus,
+		&i.IsPsn,
+		&i.IsName,
+		&i.NsPsn,
+		&i.NsName,
+		&i.DhPsn,
+		&i.DhName,
+		&i.Ic,
+		&i.Sbg,
+		&i.Bu,
+		&i.Segment,
+		&i.Department,
+		&i.BaseLocation,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ManagerID,
+		&i.SkipManagerID,
+		&i.IsID,
+		&i.NsID,
+		&i.DhID,
+		&i.RefreshTokenHash,
+		&i.RefreshTokenExpiresAt,
 	)
 	return i, err
 }
@@ -3079,7 +3139,7 @@ func (q *Queries) ListUpcomingTrainings(ctx context.Context) ([]Training, error)
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
+SELECT id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id, refresh_token_hash, refresh_token_expires_at
 FROM users
 ORDER BY first_name, last_name
 `
@@ -3129,6 +3189,8 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.IsID,
 			&i.NsID,
 			&i.DhID,
+			&i.RefreshTokenHash,
+			&i.RefreshTokenExpiresAt,
 		); err != nil {
 			return nil, err
 		}
@@ -3238,6 +3300,18 @@ func (q *Queries) RestoreCourse(ctx context.Context, id uuid.UUID) (Course, erro
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const revokeRefreshToken = `-- name: RevokeRefreshToken :exec
+UPDATE users SET
+    refresh_token_hash = NULL,
+    refresh_token_expires_at = NULL
+WHERE id = ?
+`
+
+func (q *Queries) RevokeRefreshToken(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, revokeRefreshToken, id)
+	return err
 }
 
 const updateCourse = `-- name: UpdateCourse :one
@@ -3466,6 +3540,25 @@ func (q *Queries) UpdateNominationStatus(ctx context.Context, arg UpdateNominati
 	return i, err
 }
 
+const updateRefreshToken = `-- name: UpdateRefreshToken :exec
+UPDATE users SET
+    refresh_token_hash = ?,
+    refresh_token_expires_at = ?
+WHERE id = ?
+`
+
+type UpdateRefreshTokenParams struct {
+	RefreshTokenHash      sql.NullString `json:"refresh_token_hash"`
+	RefreshTokenExpiresAt sql.NullTime   `json:"refresh_token_expires_at"`
+	ID                    uuid.UUID      `json:"id"`
+}
+
+// REFRESH TOKEN
+func (q *Queries) UpdateRefreshToken(ctx context.Context, arg UpdateRefreshTokenParams) error {
+	_, err := q.db.ExecContext(ctx, updateRefreshToken, arg.RefreshTokenHash, arg.RefreshTokenExpiresAt, arg.ID)
+	return err
+}
+
 const updateTraining = `-- name: UpdateTraining :one
 UPDATE trainings SET
     title = COALESCE(?1, title),
@@ -3643,7 +3736,7 @@ UPDATE users SET
     ns_id = COALESCE(?13, ns_id),
     dh_id = COALESCE(?14, dh_id)
 WHERE id = ?
-RETURNING id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
+RETURNING id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id, refresh_token_hash, refresh_token_expires_at
 `
 
 type UpdateUserParams struct {
@@ -3717,6 +3810,8 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,
+		&i.RefreshTokenHash,
+		&i.RefreshTokenExpiresAt,
 	)
 	return i, err
 }
@@ -4331,7 +4426,7 @@ ON CONFLICT (pes_number) DO UPDATE SET
     ns_id = excluded.ns_id,
     dh_id = excluded.dh_id,
     updated_at = CURRENT_TIMESTAMP
-RETURNING id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id
+RETURNING id, pes_number, password, first_name, last_name, full_name, email, role, cluster, location, title, gender, band, grade, employment_status, is_psn, is_name, ns_psn, ns_name, dh_psn, dh_name, ic, sbg, bu, segment, department, base_location, is_active, created_at, updated_at, manager_id, skip_manager_id, is_id, ns_id, dh_id, refresh_token_hash, refresh_token_expires_at
 `
 
 type UpsertUserParams struct {
@@ -4441,6 +4536,8 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 		&i.IsID,
 		&i.NsID,
 		&i.DhID,
+		&i.RefreshTokenHash,
+		&i.RefreshTokenExpiresAt,
 	)
 	return i, err
 }

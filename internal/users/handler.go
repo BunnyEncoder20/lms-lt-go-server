@@ -25,6 +25,33 @@ func NewHandler(svc Service, logger *slog.Logger) *Handler {
 	}
 }
 
+func (h *Handler) HandleGetMe(w http.ResponseWriter, r *http.Request) {
+	userID, err := auth.GetUserID(r.Context())
+	if err != nil {
+		h.log.Error("failed to get user ID from context", "error", err)
+		utils.WriteJSON(w, http.StatusUnauthorized, models.JSONResponse{
+			Success: false,
+			Message: "unauthorized",
+		})
+		return
+	}
+
+	user, err := h.svc.GetMe(r.Context(), userID)
+	if err != nil {
+		h.log.Error("failed to fetch user profile", "userID", userID, "error", err)
+		utils.WriteJSON(w, http.StatusNotFound, models.JSONResponse{
+			Success: false,
+			Message: "user not found",
+		})
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, models.JSONResponse{
+		Success: true,
+		Data:    user,
+	})
+}
+
 func (h *Handler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	// In a real app, you'd extract the ID from the URL using a router like chi or mux
 	// For standard library http.ServeMux in Go 1.22+, you can use r.PathValue("id")

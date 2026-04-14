@@ -19,6 +19,8 @@ import (
 )
 
 type Service interface {
+	GetUser(ctx context.Context, userID string) (models.AdminUserDetailResponse, error)
+	GetUsers(ctx context.Context) ([]models.AdminUserDetailResponse, error)
 	GetKpis(ctx context.Context) (models.AdminKpisResponse, error)
 	GetMonthlyStats(ctx context.Context) ([]models.MonthlyStatsResponse, error)
 	GetCategoryDistribution(ctx context.Context) ([]models.CategoryDistributionResponse, error)
@@ -34,6 +36,33 @@ func NewService(db database.Service) Service {
 	return &service{
 		db: db,
 	}
+}
+
+func (s *service) GetUser(ctx context.Context, userID string) (models.AdminUserDetailResponse, error) {
+	parsedID, err := uuid.Parse(userID)
+	if err != nil {
+		return models.AdminUserDetailResponse{}, errors.New("invalid user id format")
+	}
+
+	user, err := s.db.Read().GetUserByID(ctx, parsedID)
+	if err != nil {
+		return models.AdminUserDetailResponse{}, err
+	}
+
+	return MapUserToAdminDetailResponse(user), nil
+}
+
+func (s *service) GetUsers(ctx context.Context) ([]models.AdminUserDetailResponse, error) {
+	users, err := s.db.Read().ListUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]models.AdminUserDetailResponse, len(users))
+	for i, u := range users {
+		responses[i] = MapUserToAdminDetailResponse(u)
+	}
+	return responses, nil
 }
 
 func (s *service) GetKpis(ctx context.Context) (models.AdminKpisResponse, error) {
@@ -256,7 +285,6 @@ func parseExcelDate(dateStr string) time.Time {
 	if dateStr == "" {
 		return time.Time{}
 	}
-	// Try common formats
 	formats := []string{
 		"2006-01-02",
 		"01-02-06",
@@ -272,4 +300,101 @@ func parseExcelDate(dateStr string) time.Time {
 		}
 	}
 	return time.Time{}
+}
+
+func MapUserToAdminDetailResponse(u db.User) models.AdminUserDetailResponse {
+	resp := models.AdminUserDetailResponse{
+		ID:        u.ID.String(),
+		PesNumber: u.PesNumber,
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+		Email:     u.Email,
+		Role:      u.Role,
+		IsActive:  u.IsActive,
+		CreatedAt: u.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: u.UpdatedAt.Format(time.RFC3339),
+	}
+
+	if u.FullName.Valid {
+		resp.FullName = &u.FullName.String
+	}
+	if u.Cluster.Valid {
+		resp.Cluster = &u.Cluster.String
+	}
+	if u.Location.Valid {
+		resp.Location = &u.Location.String
+	}
+	if u.EmploymentStatus.Valid {
+		resp.EmploymentStatus = &u.EmploymentStatus.String
+	}
+	if u.Title.Valid {
+		resp.Title = &u.Title.String
+	}
+	if u.Gender.Valid {
+		resp.Gender = &u.Gender.String
+	}
+	if u.Band.Valid {
+		resp.Band = &u.Band.String
+	}
+	if u.Grade.Valid {
+		resp.Grade = &u.Grade.String
+	}
+	if u.IsPsn.Valid {
+		resp.IsPsn = &u.IsPsn.String
+	}
+	if u.IsName.Valid {
+		resp.IsName = &u.IsName.String
+	}
+	if u.NsPsn.Valid {
+		resp.NsPsn = &u.NsPsn.String
+	}
+	if u.NsName.Valid {
+		resp.NsName = &u.NsName.String
+	}
+	if u.DhPsn.Valid {
+		resp.DhPsn = &u.DhPsn.String
+	}
+	if u.DhName.Valid {
+		resp.DhName = &u.DhName.String
+	}
+	if u.Ic.Valid {
+		resp.Ic = &u.Ic.String
+	}
+	if u.Sbg.Valid {
+		resp.Sbg = &u.Sbg.String
+	}
+	if u.Bu.Valid {
+		resp.Bu = &u.Bu.String
+	}
+	if u.Segment.Valid {
+		resp.Segment = &u.Segment.String
+	}
+	if u.Department.Valid {
+		resp.Department = &u.Department.String
+	}
+	if u.BaseLocation.Valid {
+		resp.BaseLocation = &u.BaseLocation.String
+	}
+	if u.ManagerID.Valid {
+		id := u.ManagerID.UUID.String()
+		resp.ManagerID = &id
+	}
+	if u.SkipManagerID.Valid {
+		id := u.SkipManagerID.UUID.String()
+		resp.SkipManagerID = &id
+	}
+	if u.IsID.Valid {
+		id := u.IsID.UUID.String()
+		resp.IsID = &id
+	}
+	if u.NsID.Valid {
+		id := u.NsID.UUID.String()
+		resp.NsID = &id
+	}
+	if u.DhID.Valid {
+		id := u.DhID.UUID.String()
+		resp.DhID = &id
+	}
+
+	return resp
 }

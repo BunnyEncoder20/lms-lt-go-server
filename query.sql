@@ -909,6 +909,23 @@ INSERT INTO attendance_dispatches (
 )
 RETURNING *;
 
+-- REFRESH TOKEN
+-- name: UpdateRefreshToken :exec
+UPDATE users SET
+    refresh_token_hash = ?,
+    refresh_token_expires_at = ?
+WHERE id = ?;
+
+-- name: RevokeRefreshToken :exec
+UPDATE users SET
+    refresh_token_hash = NULL,
+    refresh_token_expires_at = NULL
+WHERE id = ?;
+
+-- name: GetUserByRefreshTokenHash :one
+SELECT * FROM users
+WHERE refresh_token_hash = ?;
+
 -- ATTENDANCE REQUESTS
 -- name: CreateAttendanceRequest :one
 INSERT INTO attendance_requests (

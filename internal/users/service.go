@@ -16,6 +16,7 @@ import (
 )
 
 type Service interface {
+	GetMe(ctx context.Context, userID string) (models.UserProfileResponse, error)
 	FindAll(ctx context.Context) ([]models.UserResponse, error)
 	FindOne(ctx context.Context, userID string) (models.UserResponse, error)
 	GetMyTeam(ctx context.Context, managerID string) ([]models.UserResponse, error)
@@ -33,6 +34,20 @@ func NewService(db database.Service, logger *slog.Logger) Service {
 	return &service{
 		db: db,
 	}
+}
+
+func (s *service) GetMe(ctx context.Context, userID string) (models.UserProfileResponse, error) {
+	parsedID, err := uuid.Parse(userID)
+	if err != nil {
+		return models.UserProfileResponse{}, errors.New("invalid user id format")
+	}
+
+	user, err := s.db.Read().GetUserByID(ctx, parsedID)
+	if err != nil {
+		return models.UserProfileResponse{}, err
+	}
+
+	return MapUserToProfileResponse(user), nil
 }
 
 func (s *service) FindAll(ctx context.Context) ([]models.UserResponse, error) {
@@ -314,7 +329,49 @@ func MapUserToResponse(u db.User) models.UserResponse {
 
 func toNullString(s *string) sql.NullString {
 	if s == nil {
-		return sql.NullString{Valid: false} // Tells coalesce to ignore this field
+		return sql.NullString{Valid: false}
 	}
-	return sql.NullString{String: *s, Valid: true} // Use the provided value to update
+	return sql.NullString{String: *s, Valid: true}
+}
+
+func MapUserToProfileResponse(u db.User) models.UserProfileResponse {
+	resp := models.UserProfileResponse{
+		ID:        u.ID.String(),
+		PesNumber: u.PesNumber,
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+		Email:     u.Email,
+		Role:      u.Role,
+	}
+
+	if u.FullName.Valid {
+		resp.FullName = &u.FullName.String
+	}
+	if u.Cluster.Valid {
+		resp.Cluster = &u.Cluster.String
+	}
+	if u.Title.Valid {
+		resp.Title = &u.Title.String
+	}
+	if u.Gender.Valid {
+		resp.Gender = &u.Gender.String
+	}
+	if u.Band.Valid {
+		resp.Band = &u.Band.String
+	}
+	if u.Grade.Valid {
+		resp.Grade = &u.Grade.String
+	}
+	if u.Department.Valid {
+		resp.Department = &u.Department.String
+	}
+	if u.BaseLocation.Valid {
+		resp.BaseLocation = &u.BaseLocation.String
+	}
+	if u.ManagerID.Valid {
+		id := u.ManagerID.UUID.String()
+		resp.ManagerID = &id
+	}
+
+	return resp
 }
